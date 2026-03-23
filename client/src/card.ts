@@ -55,7 +55,7 @@ export function createCardElement(
     } = {},
 ): HTMLElement {
     const el = document.createElement('div');
-    el.className = `uno-card ${COLOR_CLASS[card.color] || 'color-wild'}`;
+    el.className = `rc-card ${COLOR_CLASS[card.color] || 'color-wild'}`;
     el.dataset.cardId = card.id;
 
     if (options.playable === true) {
@@ -93,14 +93,14 @@ export function createCardBackElement(
     options: { small?: boolean; onClick?: () => void; count?: number } = {},
 ): HTMLElement {
     const el = document.createElement('div');
-    el.className = 'uno-card card-back';
+    el.className = 'rc-card card-back';
     if (options.small) {
         // Opponent mini card
     }
 
     el.innerHTML = `
     <div class="card-inner"></div>
-    <span class="card-value">UNO</span>
+    <span class="card-value">RC</span>
   `;
 
     if (options.onClick) {

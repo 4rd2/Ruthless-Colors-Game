@@ -80,7 +80,7 @@ function renderOpponents(game: ClientGameState): string {
 
         const miniCards = Array.from(
             { length: Math.min(opp.cardCount, 15) },
-            () => `<div class="uno-card card-back" style="width:36px;height:52px;font-size:0.5rem;margin-left:-12px;border-width:1px;"><div class="card-inner" style="inset:4px;border-radius:8px;transform:none;background:repeating-linear-gradient(45deg,rgba(124,77,255,0.08),rgba(124,77,255,0.08) 4px,transparent 4px,transparent 8px);"></div></div>`,
+            () => `<div class="rc-card card-back" style="width:36px;height:52px;font-size:0.5rem;margin-left:-12px;border-width:1px;"><div class="card-inner" style="inset:4px;border-radius:8px;transform:none;background:repeating-linear-gradient(45deg,rgba(124,77,255,0.08),rgba(124,77,255,0.08) 4px,transparent 4px,transparent 8px);"></div></div>`,
         ).join('');
 
         return `
@@ -123,7 +123,7 @@ function renderTableCenter(game: ClientGameState, isMyTurn: boolean): string {
     <div class="table-center">
       <div class="discard-pile">
         ${drawStackHtml}
-        <div class="uno-card ${colorClass}" style="cursor:default;">
+        <div class="rc-card ${colorClass}" style="cursor:default;">
           <div class="card-inner"></div>
           <span class="card-corner top-left">${display}</span>
           <span class="card-value${isSmall ? ' small-text' : ''}">${display}</span>
@@ -132,9 +132,9 @@ function renderTableCenter(game: ClientGameState, isMyTurn: boolean): string {
         ${colorIndicator}
       </div>
       <div class="draw-pile">
-        <div class="uno-card card-back draw-pile-card ${!isMyTurn || game.phase !== 'playing' ? 'disabled' : ''}" id="draw-pile" style="cursor:${isMyTurn && game.phase === 'playing' ? 'pointer' : 'default'};">
+        <div class="rc-card card-back draw-pile-card ${!isMyTurn || game.phase !== 'playing' ? 'disabled' : ''}" id="draw-pile" style="cursor:${isMyTurn && game.phase === 'playing' ? 'pointer' : 'default'};">
           <div class="card-inner" style="inset:8px;border-radius:8px;transform:none;background:repeating-linear-gradient(45deg,rgba(124,77,255,0.08),rgba(124,77,255,0.08) 4px,transparent 4px,transparent 8px);"></div>
-          <span class="card-value" style="font-size:1.1rem;font-weight:900;background:linear-gradient(135deg,#e53935,#fdd835,#43a047,#1e88e5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">UNO</span>
+          <span class="card-value" style="font-size:1.1rem;font-weight:900;background:linear-gradient(135deg,#e53935,#fdd835,#43a047,#1e88e5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">RC</span>
         </div>
         <span class="draw-pile-count">${game.drawPileCount} cards</span>
       </div>

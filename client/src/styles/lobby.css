@@ -29,7 +29,7 @@
 .lobby-title h1 {
     font-size: 2.5rem;
     font-weight: 900;
-    background: linear-gradient(135deg, var(--uno-red), var(--uno-yellow), var(--uno-green), var(--uno-blue));
+    background: linear-gradient(135deg, var(--rc-red), var(--rc-yellow), var(--rc-green), var(--rc-blue));
     background-size: 300% 300%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;

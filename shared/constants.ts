@@ -1,5 +1,5 @@
 // ============================================================
-// UNO No Mercy — Constants & Deck Configuration
+// Ruthless Colors — Constants & Deck Configuration
 // ============================================================
 
 import { CardColor, CardValue } from './types';
@@ -23,7 +23,7 @@ export const ROOM_CODE_LENGTH = 6;
 export const RECONNECT_GRACE_MS = 30_000;
 
 /** 
- * Deck composition for UNO No Mercy.
+ * Deck composition for Ruthless Colors.
  * Each entry: [color, value, count]
  */
 export const DECK_COMPOSITION: Array<[CardColor, CardValue, number]> = [

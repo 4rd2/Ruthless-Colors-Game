@@ -1,5 +1,5 @@
 // ============================================================
-// UNO No Mercy — Socket.IO Event Constants
+// Ruthless Colors — Socket.IO Event Constants
 // ============================================================
 
 // --- Client → Server ---

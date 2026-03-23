@@ -33,7 +33,7 @@
     height: 150px;
 }
 
-.discard-pile .uno-card {
+.discard-pile .rc-card {
     width: 100px;
     height: 150px;
     font-size: 2.2rem;
@@ -43,11 +43,11 @@
     left: 0;
 }
 
-.discard-pile .uno-card .card-value {
+.discard-pile .rc-card .card-value {
     font-size: 2rem;
 }
 
-.discard-pile .uno-card .card-value.small-text {
+.discard-pile .rc-card .card-value.small-text {
     font-size: 0.85rem;
 }
 
@@ -57,7 +57,7 @@
     height: 150px;
 }
 
-.draw-pile .uno-card {
+.draw-pile .rc-card {
     width: 100px;
     height: 150px;
     position: absolute;
@@ -108,19 +108,19 @@
 }
 
 .color-indicator.ci-red {
-    background: var(--uno-red);
+    background: var(--rc-red);
 }
 
 .color-indicator.ci-blue {
-    background: var(--uno-blue);
+    background: var(--rc-blue);
 }
 
 .color-indicator.ci-green {
-    background: var(--uno-green);
+    background: var(--rc-green);
 }
 
 .color-indicator.ci-yellow {
-    background: var(--uno-yellow);
+    background: var(--rc-yellow);
 }
 
 /* --- Direction Indicator --- */
@@ -240,12 +240,12 @@
     overflow-y: visible;
 }
 
-.player-hand .uno-card {
+.player-hand .rc-card {
     margin-left: -20px;
     transition: transform var(--transition-fast), margin var(--transition-fast);
 }
 
-.player-hand .uno-card:first-child {
+.player-hand .rc-card:first-child {
     margin-left: 0;
 }
 
@@ -256,7 +256,7 @@
     gap: -8px;
 }
 
-.opponent-hand .uno-card {
+.opponent-hand .rc-card {
     width: 36px;
     height: 52px;
     font-size: 0.5rem;
@@ -264,11 +264,11 @@
     border-width: 1px;
 }
 
-.opponent-hand .uno-card:first-child {
+.opponent-hand .rc-card:first-child {
     margin-left: 0;
 }
 
-.opponent-hand .uno-card .card-inner {
+.opponent-hand .rc-card .card-inner {
     inset: 4px;
 }
 
@@ -324,19 +324,19 @@
 }
 
 .color-option.co-red {
-    background: var(--uno-red);
+    background: var(--rc-red);
 }
 
 .color-option.co-blue {
-    background: var(--uno-blue);
+    background: var(--rc-blue);
 }
 
 .color-option.co-green {
-    background: var(--uno-green);
+    background: var(--rc-green);
 }
 
 .color-option.co-yellow {
-    background: var(--uno-yellow);
+    background: var(--rc-yellow);
     color: #333;
 }
 
@@ -396,7 +396,7 @@
     font-size: 2.5rem;
     font-weight: 900;
     margin-bottom: 8px;
-    background: linear-gradient(135deg, var(--uno-yellow), var(--accent));
+    background: linear-gradient(135deg, var(--rc-yellow), var(--accent));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

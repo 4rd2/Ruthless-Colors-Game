@@ -13,8 +13,8 @@ export function renderLobby(container: HTMLElement, socket: Socket): void {
     <div class="lobby-screen">
       <div class="lobby-container glass-panel">
         <div class="lobby-title">
-          <h1>UNO NO MERCY</h1>
-          <p>Brutal. Stackable. No mercy.</p>
+          <h1>RUTHLESS COLORS</h1>
+          <p>Brutal. Stackable. No mercy given.</p>
         </div>
 
         <div class="lobby-form" id="lobby-join-form">

@@ -1,10 +1,10 @@
-# 🃏 UNO No Mercy — Online Multiplayer
+# 🃏 Ruthless Colors — Online Multiplayer
 
-A browser-based UNO No Mercy clone for 2–4 players with real-time online play via room codes.
+A browser-based card game for 2–4 players with real-time online play via room codes.
 
 ## Features
 
-- **All No Mercy Cards** — Draw 2/4/6/10, Skip Everyone, Discard All, Color Roulette, Reverse Draw 4, 0 (pass all hands), 7 (swap hands)
+- **Special Cards** — Draw 2/4/6/10, Skip Everyone, Discard All, Color Roulette, Reverse Draw 4, 0 (pass all hands), 7 (swap hands)
 - **Stacking** — Draw cards stack on equal-or-higher value; penalty accumulates
 - **Mercy Rule** — 25+ cards in hand = eliminated
 - **Online Multiplayer** — Create/join games via 6-character room codes
@@ -89,10 +89,10 @@ The server serves `client/dist/` as static files and runs the WebSocket server o
 
 ```bash
 # Build the image
-docker build -t uno-no-mercy .
+docker build -t ruthless-colors .
 
 # Run it
-docker run -p 3000:3000 uno-no-mercy
+docker run -p 3000:3000 ruthless-colors
 ```
 
 Then open [http://localhost:3000](http://localhost:3000).
@@ -133,7 +133,7 @@ Then open [http://localhost:3000](http://localhost:3000).
 - ✅ Got a full multiplayer game running from zero in one session
 - ✅ Server-authoritative architecture — no shortcuts that would allow cheating
 - ✅ Clean separation of concerns (shared types, server logic, client UI)
-- ✅ All No Mercy special cards implemented with proper stacking
+- ✅ All special cards implemented with proper stacking
 - ✅ Rejoin support, disconnect grace period, room code system — solid multiplayer UX
 - ✅ Dark theme with CSS-rendered cards (no image assets needed)
 
@@ -142,12 +142,12 @@ Then open [http://localhost:3000](http://localhost:3000).
 | Area | Current State | How to Level Up |
 |------|--------------|-----------------|
 | 🧪 **Testing** | No tests yet | Add unit tests for `rules.ts` and `game.ts` — the game logic is complex enough that bugs will hide in edge cases (e.g. stacking across eliminated players, roulette on empty deck) |
-| 🎨 **UI Polish** | Functional but minimal | Add card play animations (arc from hand to discard), turn transition effects, and an "UNO!" call button when you're at 1 card |
+| 🎨 **UI Polish** | Functional but minimal | Add card play animations (arc from hand to discard), turn transition effects, and a "Call Last Card!" button when you're at 1 card |
 | 🔊 **Sound** | Silent | Add card play, draw, stack, and elimination sounds — audio makes a *massive* difference in game feel |
 | 📱 **Mobile** | Desktop-first | Hand is hard to use on small screens — add touch-friendly card fanning and swipe-to-play |
 | 🔒 **Validation** | Basic | Add rate limiting on Socket.IO events, input sanitization on player names, and room cleanup for stale games |
 | 📊 **Game Log** | No history | Add a sidebar showing recent plays ("Sarah played +4, Ford drew 8 cards") so players can follow the chaos |
-| 🃏 **UNO Call** | Not implemented | Players should have to click "UNO!" when they're down to 1 card, or get penalized with +2 if someone catches them |
+| 🃏 **Last Card Call** | Not implemented | Players should have to click "Last Card!" when they're down to 1 card, or get penalized with +2 if someone catches them |
 | ♻️ **State Management** | Full re-render on every state change | Diff-based rendering or switch to a lightweight framework (Preact/Lit) to avoid flickering |
 
 **TL;DR:** Great vibes for a one-session build. The architecture is solid and the game is playable. The main gaps are polish (animations, sound) and robustness (tests, validation). Adding sound effects alone would bump this to an 8.5.

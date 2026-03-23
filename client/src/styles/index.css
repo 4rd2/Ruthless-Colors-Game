@@ -1,5 +1,5 @@
 /* ============================================================
-   UNO No Mercy — Design System & Global Styles
+   Ruthless Colors — Design System & Global Styles
    ============================================================ */
 
 :root {
@@ -14,17 +14,17 @@
   --text-secondary: #9fa8da;
   --text-muted: #5c6bc0;
 
-  /* UNO Card Colors */
-  --uno-red: #e53935;
-  --uno-red-glow: rgba(229, 57, 53, 0.4);
-  --uno-blue: #1e88e5;
-  --uno-blue-glow: rgba(30, 136, 229, 0.4);
-  --uno-green: #43a047;
-  --uno-green-glow: rgba(67, 160, 71, 0.4);
-  --uno-yellow: #fdd835;
-  --uno-yellow-glow: rgba(253, 216, 53, 0.4);
-  --uno-wild: #1a1a2e;
-  --uno-wild-glow: rgba(156, 39, 176, 0.4);
+  /* Card Colors */
+  --rc-red: #e53935;
+  --rc-red-glow: rgba(229, 57, 53, 0.4);
+  --rc-blue: #1e88e5;
+  --rc-blue-glow: rgba(30, 136, 229, 0.4);
+  --rc-green: #43a047;
+  --rc-green-glow: rgba(67, 160, 71, 0.4);
+  --rc-yellow: #fdd835;
+  --rc-yellow-glow: rgba(253, 216, 53, 0.4);
+  --rc-wild: #1a1a2e;
+  --rc-wild-glow: rgba(156, 39, 176, 0.4);
 
   /* Accent */
   --accent: #7c4dff;
@@ -56,13 +56,16 @@
 
 /* --- Reset & Base --- */
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html, body {
+html,
+body {
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -118,7 +121,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent);
   opacity: 0;
   transition: opacity var(--transition-fast);
 }
@@ -183,28 +186,61 @@ body {
 /* --- Animations --- */
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(40px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
 }
 
 @keyframes cardDeal {
-  from { opacity: 0; transform: translateY(-50px) rotate(-10deg) scale(0.8); }
-  to { opacity: 1; transform: translateY(0) rotate(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(-50px) rotate(-10deg) scale(0.8);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0) scale(1);
+  }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 .animate-fade-in {

@@ -366,5 +366,5 @@ app.get('*', (_req, res) => {
 });
 
 server.listen(PORT, () => {
-    console.log(`🃏 UNO No Mercy server running on port ${PORT}`);
+    console.log(`🃏 Ruthless Colors server running on port ${PORT}`);
 });

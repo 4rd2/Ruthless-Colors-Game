@@ -6,7 +6,7 @@ import { v4 as uuid } from 'uuid';
 import { Card, CardColor, CardValue } from '../../shared/types';
 import { DECK_COMPOSITION } from '../../shared/constants';
 
-/** Build the full UNO No Mercy deck */
+/** Build the full Ruthless Colors deck */
 export function buildDeck(): Card[] {
     const deck: Card[] = [];
     for (const [color, value, count] of DECK_COMPOSITION) {
