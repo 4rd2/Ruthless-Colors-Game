@@ -1,0 +1,450 @@
+/* ============================================================
+   Game Board Styles
+   ============================================================ */
+
+@import './cards.css';
+
+.game-screen {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+    background:
+        radial-gradient(ellipse at center, rgba(124, 77, 255, 0.04), transparent 70%),
+        var(--bg-primary);
+}
+
+/* --- Table Center (discard + draw piles) --- */
+
+.table-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    gap: 40px;
+    z-index: 5;
+}
+
+.discard-pile {
+    position: relative;
+    width: 100px;
+    height: 150px;
+}
+
+.discard-pile .uno-card {
+    width: 100px;
+    height: 150px;
+    font-size: 2.2rem;
+    cursor: default;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.discard-pile .uno-card .card-value {
+    font-size: 2rem;
+}
+
+.discard-pile .uno-card .card-value.small-text {
+    font-size: 0.85rem;
+}
+
+.draw-pile {
+    position: relative;
+    width: 100px;
+    height: 150px;
+}
+
+.draw-pile .uno-card {
+    width: 100px;
+    height: 150px;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.draw-pile-count {
+    position: absolute;
+    bottom: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* --- Draw Stack Indicator --- */
+
+.draw-stack-indicator {
+    position: absolute;
+    top: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 6px 18px;
+    border-radius: 99px;
+    background: linear-gradient(135deg, var(--danger), #c62828);
+    color: white;
+    font-weight: 700;
+    font-size: 1rem;
+    animation: pulse 0.8s ease infinite;
+    white-space: nowrap;
+    box-shadow: 0 4px 20px rgba(255, 82, 82, 0.4);
+}
+
+/* --- Color Indicator --- */
+
+.color-indicator {
+    position: absolute;
+    bottom: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 12px currentColor;
+}
+
+.color-indicator.ci-red {
+    background: var(--uno-red);
+}
+
+.color-indicator.ci-blue {
+    background: var(--uno-blue);
+}
+
+.color-indicator.ci-green {
+    background: var(--uno-green);
+}
+
+.color-indicator.ci-yellow {
+    background: var(--uno-yellow);
+}
+
+/* --- Direction Indicator --- */
+
+.direction-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 220px;
+    height: 220px;
+    border: 2px dashed rgba(124, 77, 255, 0.15);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.direction-indicator .arrow {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1.2rem;
+    color: var(--text-muted);
+}
+
+/* --- Player Areas --- */
+
+.player-area {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    z-index: 3;
+}
+
+.player-area.bottom {
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    flex-direction: column;
+}
+
+.player-area.top {
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.player-area.left {
+    top: 50%;
+    left: 16px;
+    transform: translateY(-50%);
+}
+
+.player-area.right {
+    top: 50%;
+    right: 16px;
+    transform: translateY(-50%);
+}
+
+/* --- Player Info Badge --- */
+
+.player-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    border-radius: var(--radius-xl);
+    background: var(--bg-glass);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border-glass);
+    transition: all var(--transition-fast);
+}
+
+.player-info.current-turn {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px var(--accent-glow);
+}
+
+.player-info.eliminated {
+    opacity: 0.4;
+    text-decoration: line-through;
+}
+
+.player-info .player-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.player-info .card-count {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 10px;
+    border-radius: 99px;
+}
+
+.player-info .card-count.danger {
+    color: var(--danger);
+    background: rgba(255, 82, 82, 0.15);
+}
+
+/* --- Player Hand (bottom) --- */
+
+.player-hand {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 12px 20px 20px;
+    width: 100%;
+    min-height: 160px;
+    overflow-x: auto;
+    overflow-y: visible;
+}
+
+.player-hand .uno-card {
+    margin-left: -20px;
+    transition: transform var(--transition-fast), margin var(--transition-fast);
+}
+
+.player-hand .uno-card:first-child {
+    margin-left: 0;
+}
+
+/* --- Opponent Hand (card backs) --- */
+
+.opponent-hand {
+    display: flex;
+    gap: -8px;
+}
+
+.opponent-hand .uno-card {
+    width: 36px;
+    height: 52px;
+    font-size: 0.5rem;
+    margin-left: -12px;
+    border-width: 1px;
+}
+
+.opponent-hand .uno-card:first-child {
+    margin-left: 0;
+}
+
+.opponent-hand .uno-card .card-inner {
+    inset: 4px;
+}
+
+/* --- Color Chooser Modal --- */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    animation: fadeIn 0.2s ease;
+}
+
+.color-chooser {
+    padding: 32px;
+    text-align: center;
+    animation: slideUp 0.3s ease;
+}
+
+.color-chooser h3 {
+    font-size: 1.3rem;
+    margin-bottom: 24px;
+    color: var(--text-primary);
+}
+
+.color-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.color-option {
+    width: 80px;
+    height: 80px;
+    border: 3px solid transparent;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: white;
+}
+
+.color-option:hover {
+    transform: scale(1.1);
+    border-color: white;
+}
+
+.color-option.co-red {
+    background: var(--uno-red);
+}
+
+.color-option.co-blue {
+    background: var(--uno-blue);
+}
+
+.color-option.co-green {
+    background: var(--uno-green);
+}
+
+.color-option.co-yellow {
+    background: var(--uno-yellow);
+    color: #333;
+}
+
+/* --- Swap Target Selector --- */
+
+.swap-selector {
+    padding: 32px;
+    text-align: center;
+    animation: slideUp 0.3s ease;
+}
+
+.swap-selector h3 {
+    margin-bottom: 20px;
+}
+
+.swap-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.swap-option {
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.swap-option:hover {
+    background: rgba(124, 77, 255, 0.1);
+    border-color: var(--accent);
+}
+
+/* --- Game Over Overlay --- */
+
+.game-over-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    animation: fadeIn 0.5s ease;
+}
+
+.game-over-panel {
+    text-align: center;
+    padding: 48px;
+    max-width: 400px;
+    animation: slideUp 0.5s ease;
+}
+
+.game-over-panel h2 {
+    font-size: 2.5rem;
+    font-weight: 900;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--uno-yellow), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.game-over-panel .winner-name {
+    font-size: 1.4rem;
+    color: var(--text-secondary);
+    margin-bottom: 32px;
+}
+
+/* --- Toast Messages --- */
+
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    padding: 12px 20px;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-weight: 600;
+    animation: fadeIn 0.3s ease, fadeIn 0.3s ease 2.5s reverse forwards;
+    max-width: 320px;
+}
+
+.toast.info {
+    background: rgba(30, 136, 229, 0.9);
+    color: white;
+}
+
+.toast.warning {
+    background: rgba(255, 152, 0, 0.9);
+    color: white;
+}
+
+.toast.error {
+    background: rgba(255, 82, 82, 0.9);
+    color: white;
+}
+
+.toast.success {
+    background: rgba(105, 240, 174, 0.9);
+    color: #1a1a2e;
+}
