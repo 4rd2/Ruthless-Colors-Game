@@ -75,6 +75,7 @@ export function createGame(roomCode: string, players: Array<{ id: string; socket
         phase: GamePhase.Playing,
         chosenColor: null,
         drawStack: 0,
+        drawStackOriginIndex: -1,
         winnerId: null,
         turnTimer: null,
     };
@@ -165,8 +166,19 @@ export function playCard(
     // Set draw stack
     state.drawStack = effect.drawStack;
 
-    // Update current player
-    state.currentPlayerIndex = effect.nextPlayerIndex;
+    // Track who started the draw chain
+    if (effect.drawStack > 0 && state.drawStackOriginIndex === -1 && !effect.parryReflect) {
+        state.drawStackOriginIndex = state.players.indexOf(player);
+    }
+
+    // Handle Parry reflection — redirect turn to the attacker
+    if (effect.parryReflect && state.drawStackOriginIndex >= 0) {
+        state.currentPlayerIndex = state.drawStackOriginIndex;
+        state.drawStackOriginIndex = -1; // reset origin
+    } else {
+        // Update current player
+        state.currentPlayerIndex = effect.nextPlayerIndex;
+    }
 
     // If this is a wild card and needs color choice
     if (card.color === CardColor.Wild && effect.phase === GamePhase.ChoosingColor) {
@@ -246,6 +258,7 @@ export function drawCard(state: GameState, playerId: string): ActionResult {
     if (state.drawStack > 0) {
         count = state.drawStack;
         state.drawStack = 0;
+        state.drawStackOriginIndex = -1;
     }
 
     const cards = drawCards(state.drawPile, state.discardPile, count);
@@ -401,6 +414,7 @@ export function sanitizeGameState(state: GameState, forPlayerId: string): Client
         phase: state.phase,
         chosenColor: state.chosenColor,
         drawStack: state.drawStack,
+        drawStackOriginId: state.drawStackOriginIndex >= 0 ? state.players[state.drawStackOriginIndex]?.id ?? null : null,
         winnerId: state.winnerId,
         lastAction: null,
     };

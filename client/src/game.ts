@@ -28,6 +28,8 @@ function clientCanPlay(card: Card, topCard: Card, chosenColor: CardColor | null,
     };
 
     if (drawStack > 0) {
+        // Parry can always be played when there's an active draw stack
+        if (card.value === 'wild_parry') return true;
         if (!(card.value in DRAW_VALUES)) return false;
         return (DRAW_VALUES[card.value] ?? 0) >= (DRAW_VALUES[topCard.value] ?? 0);
     }
@@ -105,9 +107,10 @@ function renderTableCenter(game: ClientGameState, isMyTurn: boolean): string {
         skip: '⊘', reverse: '⇄', draw2: '+2', discard_all: '✕ALL',
         skip_everyone: '⊘ALL', wild_draw4: '+4', wild_draw6: '+6',
         wild_draw10: '+10', wild_color_roulette: '🎰', wild_reverse_draw4: '⇄+4',
+        wild_parry: '🛡️',
     };
     const display = VALUE_DISPLAY[topCard.value] || topCard.value;
-    const isSmall = ['discard_all', 'skip_everyone', 'wild_color_roulette', 'wild_reverse_draw4'].includes(topCard.value);
+    const isSmall = ['discard_all', 'skip_everyone', 'wild_color_roulette', 'wild_reverse_draw4', 'wild_parry'].includes(topCard.value);
 
     let drawStackHtml = '';
     if (game.drawStack > 0) {

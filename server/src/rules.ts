@@ -20,6 +20,8 @@ import { drawCards } from './deck';
 export function canPlayCard(card: Card, topCard: Card, chosenColor: CardColor | null, drawStack: number): boolean {
     // If there's an active draw stack, only draw cards of equal or higher value can be played
     if (drawStack > 0) {
+        // Parry can always be played when there's an active draw stack
+        if (card.value === CardValue.WildParry) return true;
         if (!isDrawCard(card.value)) return false;
         return getDrawValue(card.value) >= getDrawValue(topCard.value);
     }
@@ -88,6 +90,8 @@ export interface CardEffect {
     colorRoulette: boolean;
     /** Player gets another turn */
     playAgain: boolean;
+    /** Parry: reflect the draw stack back to the attacker */
+    parryReflect: boolean;
 }
 
 /** Resolve the effect of playing a card */
@@ -103,6 +107,7 @@ export function resolveCardEffect(card: Card, state: GameState): CardEffect {
         swapHands: false,
         colorRoulette: false,
         playAgain: false,
+        parryReflect: false,
     };
 
     switch (card.value) {
@@ -187,6 +192,13 @@ export function resolveCardEffect(card: Card, state: GameState): CardEffect {
             // Recalculate next with new direction
             const tempState2 = { ...state, direction: effect.direction };
             effect.nextPlayerIndex = getNextPlayerIndex(tempState2);
+            break;
+
+        case CardValue.WildParry:
+            // Reflect the entire draw stack back to the attacker
+            effect.parryReflect = true;
+            effect.drawStack = state.drawStack; // keep the accumulated stack
+            effect.phase = GamePhase.Playing;
             break;
 
         default:

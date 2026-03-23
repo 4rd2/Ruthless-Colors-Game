@@ -33,6 +33,7 @@ export enum CardValue {
     WildDrawTen = 'wild_draw10',
     WildColorRoulette = 'wild_color_roulette',
     WildReverseDrawFour = 'wild_reverse_draw4',
+    WildParry = 'wild_parry',
 }
 
 export interface Card {
@@ -85,6 +86,7 @@ export interface GameState {
     phase: GamePhase;
     chosenColor: CardColor | null;
     drawStack: number; // accumulated stacking penalty
+    drawStackOriginIndex: number; // player index who started the draw chain (for Parry)
     winnerId: string | null;
     turnTimer: number | null;
 }
@@ -106,6 +108,7 @@ export interface ClientGameState {
     phase: GamePhase;
     chosenColor: CardColor | null;
     drawStack: number;
+    drawStackOriginId: string | null;
     winnerId: string | null;
     lastAction: GameAction | null;
 }

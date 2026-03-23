@@ -53,6 +53,7 @@ export const DECK_COMPOSITION: Array<[CardColor, CardValue, number]> = [
     [CardColor.Wild, CardValue.WildDrawTen, 4],
     [CardColor.Wild, CardValue.WildColorRoulette, 4],
     [CardColor.Wild, CardValue.WildReverseDrawFour, 4],
+    [CardColor.Wild, CardValue.WildParry, 4],
 ];
 
 /** Draw penalty values for stackable draw cards */
@@ -64,9 +65,9 @@ export const DRAW_VALUES: Partial<Record<CardValue, number>> = {
     [CardValue.WildDrawTen]: 10,
 };
 
-/** Check if a card value is a draw card (stackable) */
+/** Check if a card value is a draw card (stackable) or a Parry */
 export function isDrawCard(value: CardValue): boolean {
-    return value in DRAW_VALUES;
+    return value in DRAW_VALUES || value === CardValue.WildParry;
 }
 
 /** Get the draw penalty for a card value */

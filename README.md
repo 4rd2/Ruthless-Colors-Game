@@ -4,7 +4,7 @@ A browser-based card game for 2–4 players with real-time online play via room 
 
 ## Features
 
-- **Special Cards** — Draw 2/4/6/10, Skip Everyone, Discard All, Color Roulette, Reverse Draw 4, 0 (pass all hands), 7 (swap hands)
+- **Special Cards** — Draw 2/4/6/10, Skip Everyone, Discard All, Color Roulette, Reverse Draw 4, Parry (reflects draw stack), 0 (pass all hands), 7 (swap hands)
 - **Stacking** — Draw cards stack on equal-or-higher value; penalty accumulates
 - **Mercy Rule** — 25+ cards in hand = eliminated
 - **Online Multiplayer** — Create/join games via 6-character room codes

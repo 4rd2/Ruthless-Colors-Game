@@ -25,6 +25,7 @@ const VALUE_DISPLAY: Record<string, string> = {
     [CardValue.WildDrawTen]: '+10',
     [CardValue.WildColorRoulette]: '🎰',
     [CardValue.WildReverseDrawFour]: '⇄+4',
+    [CardValue.WildParry]: '🛡️',
 };
 
 const COLOR_CLASS: Record<string, string> = {
@@ -41,6 +42,7 @@ function isSmallText(value: CardValue): boolean {
         CardValue.SkipEveryone,
         CardValue.WildColorRoulette,
         CardValue.WildReverseDrawFour,
+        CardValue.WildParry,
     ].includes(value);
 }
 
