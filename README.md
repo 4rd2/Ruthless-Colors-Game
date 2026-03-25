@@ -143,6 +143,7 @@ Then open [http://localhost:3000](http://localhost:3000).
 |------|--------------|-----------------|
 | 🧪 **Testing** | No tests yet | Add unit tests for `rules.ts` and `game.ts` — the game logic is complex enough that bugs will hide in edge cases (e.g. stacking across eliminated players, roulette on empty deck) |
 | 🎨 **UI Polish** | Functional but minimal | Add card play animations (arc from hand to discard), turn transition effects, and a "Call Last Card!" button when you're at 1 card |
+| 🖱️ **Drag & Drop** | Double-click to play | Add drag-and-drop support so players can drag cards from their hand directly to the discard pile |
 | 🔊 **Sound** | Silent | Add card play, draw, stack, and elimination sounds — audio makes a *massive* difference in game feel |
 | 📱 **Mobile** | Desktop-first | Hand is hard to use on small screens — add touch-friendly card fanning and swipe-to-play |
 | 🔒 **Validation** | Basic | Add rate limiting on Socket.IO events, input sanitization on player names, and room cleanup for stale games |

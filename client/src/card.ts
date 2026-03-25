@@ -72,7 +72,7 @@ function isSmallText(value: CardValue): boolean {
 
 /** Attach hold-to-describe tooltip behavior to a card element */
 function setupHoldToDescribe(el: HTMLElement, card: Card): void {
-    const description = CARD_DESCRIPTIONS[card.value] || 'Play this card.';
+    const description = CARD_DESCRIPTIONS[card.value] || 'Double-click to play.';
     let holdTimer: ReturnType<typeof setTimeout> | null = null;
     let tooltip: HTMLElement | null = null;
 
@@ -160,7 +160,11 @@ export function createCardElement(
   `;
 
     if (options.onClick) {
-        el.addEventListener('click', () => options.onClick!(card));
+        el.addEventListener('dblclick', (e) => {
+            // Prevent text selection on double click
+            e.preventDefault();
+            options.onClick!(card);
+        });
     }
 
     // Hold-to-describe tooltip
