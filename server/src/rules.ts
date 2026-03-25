@@ -198,7 +198,7 @@ export function resolveCardEffect(card: Card, state: GameState): CardEffect {
             // Reflect the entire draw stack back to the attacker
             effect.parryReflect = true;
             effect.drawStack = state.drawStack; // keep the accumulated stack
-            effect.phase = GamePhase.Playing;
+            effect.phase = GamePhase.ChoosingColor; // player must choose a color
             break;
 
         default:

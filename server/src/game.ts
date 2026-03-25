@@ -172,10 +172,11 @@ export function playCard(
     }
 
     // Handle Parry reflection — redirect turn to the attacker
-    if (effect.parryReflect && state.drawStackOriginIndex >= 0) {
+    // (Only if NOT going to ChoosingColor phase; otherwise defer to chooseColor)
+    if (effect.parryReflect && state.drawStackOriginIndex >= 0 && effect.phase !== GamePhase.ChoosingColor) {
         state.currentPlayerIndex = state.drawStackOriginIndex;
         state.drawStackOriginIndex = -1; // reset origin
-    } else {
+    } else if (!effect.parryReflect) {
         // Update current player
         state.currentPlayerIndex = effect.nextPlayerIndex;
     }
@@ -309,8 +310,15 @@ export function chooseColor(state: GameState, playerId: string, color: CardColor
     }
 
     state.phase = GamePhase.Playing;
-    // Move to next player
-    state.currentPlayerIndex = getNextPlayerIndex(state);
+
+    // If this was a Parry card, redirect the draw stack to the attacker
+    if (topCard.value === CardValue.WildParry && state.drawStackOriginIndex >= 0) {
+        state.currentPlayerIndex = state.drawStackOriginIndex;
+        state.drawStackOriginIndex = -1;
+    } else {
+        // Move to next player
+        state.currentPlayerIndex = getNextPlayerIndex(state);
+    }
 
     return { success: true, state };
 }
