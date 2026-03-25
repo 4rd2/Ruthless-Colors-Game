@@ -123,30 +123,6 @@
     background: var(--rc-yellow);
 }
 
-/* --- Direction Indicator --- */
-
-.direction-indicator {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 220px;
-    height: 220px;
-    border: 2px dashed rgba(124, 77, 255, 0.15);
-    border-radius: 50%;
-    pointer-events: none;
-    z-index: 1;
-}
-
-.direction-indicator .arrow {
-    position: absolute;
-    top: -12px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 1.2rem;
-    color: var(--text-muted);
-}
-
 /* --- Player Areas --- */
 
 .player-area {

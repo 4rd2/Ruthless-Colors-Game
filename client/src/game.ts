@@ -49,7 +49,6 @@ export function renderGame(container: HTMLElement, socket: Socket): void {
 
     container.innerHTML = `
     <div class="game-screen">
-      ${renderDirectionIndicator(game)}
       ${renderOpponents(game)}
       ${renderTableCenter(game, isMyTurn)}
       ${renderPlayerHand(game, isMyTurn)}
@@ -62,15 +61,6 @@ export function renderGame(container: HTMLElement, socket: Socket): void {
     attachHandListeners(container, socket, game, isMyTurn);
     attachDrawPileListener(container, socket, game, isMyTurn);
     attachModalListeners(container, socket, game);
-}
-
-function renderDirectionIndicator(game: ClientGameState): string {
-    const arrow = game.direction === Direction.Clockwise ? '↻' : '↺';
-    return `
-    <div class="direction-indicator">
-      <span class="arrow">${arrow}</span>
-    </div>
-  `;
 }
 
 function renderOpponents(game: ClientGameState): string {
