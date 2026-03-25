@@ -72,7 +72,7 @@ function isSmallText(value: CardValue): boolean {
 
 /** Attach hold-to-describe tooltip behavior to a card element */
 function setupHoldToDescribe(el: HTMLElement, card: Card): void {
-    const description = CARD_DESCRIPTIONS[card.value] || 'Double-click to play.';
+    const description = CARD_DESCRIPTIONS[card.value] || 'Click to select, click again to play.';
     let holdTimer: ReturnType<typeof setTimeout> | null = null;
     let tooltip: HTMLElement | null = null;
 
@@ -160,10 +160,19 @@ export function createCardElement(
   `;
 
     if (options.onClick) {
-        el.addEventListener('dblclick', (e) => {
-            // Prevent text selection on double click
-            e.preventDefault();
-            options.onClick!(card);
+        el.addEventListener('click', (e) => {
+            // If already selected, play it
+            if (el.classList.contains('selected')) {
+                // Remove selection from all cards just to be safe
+                document.querySelectorAll('.rc-card.selected').forEach(c => c.classList.remove('selected'));
+                options.onClick!(card);
+            } else {
+                // Deselect all other cards
+                document.querySelectorAll('.rc-card.selected').forEach(c => c.classList.remove('selected'));
+                // Select this card
+                el.classList.add('selected');
+                e.stopPropagation(); // Prevent document click from immediately deselecting
+            }
         });
     }
 
@@ -194,4 +203,15 @@ export function createCardBackElement(
     }
 
     return el;
+}
+
+// Global listener to deselect cards when clicking outside
+if (typeof document !== 'undefined') {
+    document.addEventListener('click', (e) => {
+        // If clicking on a tooltip or something that prevents default/propagation, ignore
+        if (e.defaultPrevented) return;
+        
+        // Remove selection from all cards
+        document.querySelectorAll('.rc-card.selected').forEach(c => c.classList.remove('selected'));
+    });
 }
