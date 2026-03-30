@@ -1,0 +1,249 @@
+/* ═══════════════════════════════════════════════════════════
+   RUTHLESS COLORS — Card Styles
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Base card ─────────────────────────────────────────────── */
+
+.rc-card {
+    position: relative;
+    width: 72px;
+    height: 108px;
+    border-radius: 12px;
+    border: 2.5px solid rgba(255, 255, 255, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    user-select: none;
+    cursor: default;
+    box-shadow:
+        0 4px 6px rgba(0, 0, 0, 0.4),
+        0 8px 20px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.18s ease,
+                opacity 0.15s ease;
+    overflow: hidden;
+}
+
+/* ── Color fills (radial gradient for depth) ───────────────── */
+
+.color-red {
+    background: radial-gradient(ellipse at 40% 35%, #f87171, #dc2626 55%, #991b1b);
+}
+.color-blue {
+    background: radial-gradient(ellipse at 40% 35%, #60a5fa, #2563eb 55%, #1e3a8a);
+}
+.color-green {
+    background: radial-gradient(ellipse at 40% 35%, #4ade80, #16a34a 55%, #14532d);
+}
+.color-yellow {
+    background: radial-gradient(ellipse at 40% 35%, #fde68a, #f59e0b 55%, #b45309);
+}
+.color-wild {
+    background:
+        conic-gradient(
+            from 0deg at 50% 50%,
+            #dc2626   0deg  90deg,
+            #2563eb  90deg 180deg,
+            #16a34a 180deg 270deg,
+            #f59e0b 270deg 360deg
+        );
+}
+
+/* ── Inner oval ─────────────────────────────────────────────── */
+
+.rc-card::before {
+    content: '';
+    position: absolute;
+    inset: 9px 7px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    background: rgba(0, 0, 0, 0.12);
+    transform: rotate(-28deg);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* ── Corner values ──────────────────────────────────────────── */
+
+.rc-card > span:nth-child(1) {
+    position: absolute;
+    top: 5px;
+    left: 7px;
+    font-size: 0.62rem;
+    font-weight: 900;
+    color: white;
+    line-height: 1;
+    letter-spacing: -0.5px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    z-index: 1;
+}
+
+.rc-card > span:nth-child(3) {
+    position: absolute;
+    bottom: 5px;
+    right: 7px;
+    font-size: 0.62rem;
+    font-weight: 900;
+    color: white;
+    line-height: 1;
+    letter-spacing: -0.5px;
+    transform: rotate(180deg);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    z-index: 1;
+}
+
+/* ── Center value ───────────────────────────────────────────── */
+
+.rc-card > span:nth-child(2) {
+    position: relative;
+    z-index: 1;
+    font-size: 1.75rem;
+    font-weight: 900;
+    color: white;
+    line-height: 1;
+    letter-spacing: -1px;
+    text-shadow:
+        0 2px 0 rgba(0, 0, 0, 0.3),
+        0 3px 8px rgba(0, 0, 0, 0.4);
+    -webkit-text-stroke: 0.5px rgba(0, 0, 0, 0.2);
+}
+
+/* Yellow: dark text for contrast */
+.color-yellow > span {
+    color: #1c1917;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.2);
+    -webkit-text-stroke: 0;
+}
+
+/* ── Shine overlay ──────────────────────────────────────────── */
+
+.rc-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.18) 0%,
+        rgba(255, 255, 255, 0.06) 40%,
+        transparent 60%
+    );
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* ── States ─────────────────────────────────────────────────── */
+
+.rc-card.playable {
+    cursor: pointer;
+    border-color: rgba(255, 255, 255, 0.85);
+    box-shadow:
+        0 0 0 2px #3b82f6,
+        0 0 14px rgba(59, 130, 246, 0.5),
+        0 6px 16px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.rc-card.playable:hover {
+    transform: translateY(-12px) scale(1.04);
+    box-shadow:
+        0 0 0 2.5px #60a5fa,
+        0 0 22px rgba(96, 165, 250, 0.6),
+        0 14px 28px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.rc-card.selected {
+    animation: none;
+    transform: translateY(-22px) scale(1.18);
+    z-index: 50;
+    box-shadow:
+        0 12px 32px rgba(0, 0, 0, 0.65),
+        0 4px 10px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.rc-card.not-playable {
+    opacity: 0.3;
+    cursor: default;
+    filter: saturate(0.5);
+}
+
+/* ── Deal animation ─────────────────────────────────────────── */
+
+@keyframes dealIn {
+    from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.85) rotate(-4deg);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1) rotate(0deg);
+    }
+}
+
+.rc-card.dealing {
+    animation: dealIn 0.28s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+/* ── Card back ──────────────────────────────────────────────── */
+
+.rc-card.card-back {
+    background: #1e3a5f;
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow:
+        0 4px 6px rgba(0, 0, 0, 0.5),
+        0 8px 20px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Diamond pattern for card back */
+.rc-card.card-back::before {
+    background:
+        repeating-linear-gradient(
+            45deg,
+            rgba(255, 255, 255, 0.04) 0px,
+            rgba(255, 255, 255, 0.04) 2px,
+            transparent 2px,
+            transparent 8px
+        ),
+        repeating-linear-gradient(
+            -45deg,
+            rgba(255, 255, 255, 0.04) 0px,
+            rgba(255, 255, 255, 0.04) 2px,
+            transparent 2px,
+            transparent 8px
+        );
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    background-color: transparent;
+    transform: none;
+    border-radius: 8px;
+    inset: 6px;
+}
+
+.rc-card.card-back > span {
+    position: relative;
+    z-index: 1;
+    font-size: 0.7rem;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.55);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+}
+
+/* ── Draw pile ──────────────────────────────────────────────── */
+
+.rc-card.draw-pile-card {
+    cursor: pointer;
+}
+
+.rc-card.draw-pile-card:hover {
+    transform: translateY(-6px) scale(1.05);
+    box-shadow:
+        0 0 0 2px #60a5fa,
+        0 0 18px rgba(96, 165, 250, 0.5),
+        0 10px 24px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}

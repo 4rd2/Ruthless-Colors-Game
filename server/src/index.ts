@@ -81,6 +81,19 @@ function broadcastGameState(roomCode: string): void {
 io.on('connection', (socket) => {
     console.log(`[connect] ${socket.id}`);
 
+    // --- Check Room Status ---
+    socket.on(C2S.CHECK_ROOM, (roomCode: string, callback) => {
+        const room = getRoom(roomCode);
+        if (!room) {
+            callback({ exists: false });
+            return;
+        }
+        callback({
+            exists: true,
+            gameStarted: room.gameStarted,
+        });
+    });
+
     // --- Create Room ---
     socket.on(C2S.CREATE_ROOM, (data: { playerName: string }, callback) => {
         const { room, playerId } = createRoom(data.playerName, socket.id);

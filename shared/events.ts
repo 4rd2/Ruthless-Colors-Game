@@ -14,6 +14,7 @@ export const C2S = {
     COLOR_ROULETTE_CHOICE: 'c2s:color_roulette_choice',
     RECONNECT: 'c2s:reconnect',
     REJOIN_BY_NAME: 'c2s:rejoin_by_name',
+    CHECK_ROOM: 'c2s:check_room',
 } as const;
 
 // --- Server → Client ---
