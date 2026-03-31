@@ -2,7 +2,8 @@
 // Game Board
 // ============================================================
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { motion, LayoutGroup } from 'framer-motion';
 import { Socket } from 'socket.io-client';
 import { C2S } from '@shared/events';
 import { Card, CardColor, ClientGameState, OpponentView } from '@shared/types';
@@ -31,25 +32,40 @@ const COLOR_OPTIONS: { color: CardColor; label: string; hex: string }[] = [
 
 // ── Opponent area ────────────────────────────────────────────
 
-function OpponentArea({ opponent }: {
+function OpponentArea({ opponent, isActive }: {
     opponent: OpponentView;
+    isActive: boolean;
 }) {
     return (
-        <div className="flex items-center gap-2 rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-1.5">
-            <span className="text-sm font-medium text-zinc-200">{opponent.name}</span>
-            <span className="text-xs text-zinc-400">{opponent.cardCount} cards</span>
+        <div className={`flex flex-col items-center gap-1 rounded-xl px-4 py-2 transition-all duration-300 ${
+            isActive 
+                ? 'bg-blue-900/60 border-2 border-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.5)] transform scale-110 z-10' 
+                : 'bg-zinc-800/80 border-2 border-zinc-700 opacity-60'
+        }`}>
+            <span className={`text-sm font-bold tracking-wide ${isActive ? 'text-white' : 'text-zinc-300'}`}>
+                {opponent.name} {isActive && '🔥'}
+            </span>
+            <span className={`text-xs ${isActive ? 'text-blue-200 font-bold' : 'text-zinc-500 font-semibold'}`}>
+                {opponent.cardCount} cards
+            </span>
+            {isActive && (
+                <span className="text-[10px] font-black uppercase tracking-widest text-blue-300 animate-pulse mt-1">
+                    Their Turn
+                </span>
+            )}
         </div>
     );
 }
 
 // ── Table center ─────────────────────────────────────────────
 
-function TableCenter({ game, isMyTurn, onDraw }: {
+function TableCenter({ game, isMyTurn, onDraw, optimisticPlayedCard }: {
     game: ClientGameState;
     isMyTurn: boolean;
     onDraw: () => void;
+    optimisticPlayedCard: Card | null;
 }) {
-    const topCard  = game.topCard;
+    const topCard  = optimisticPlayedCard || game.topCard;
     const display  = VALUE_DISPLAY[topCard.value] ?? topCard.value;
 const canDraw  = isMyTurn && game.phase === 'playing';
     const dotColor = game.chosenColor && game.chosenColor !== 'wild' ? (COLOR_HEX[game.chosenColor] ?? null) : null;
@@ -57,17 +73,17 @@ const canDraw  = isMyTurn && game.phase === 'playing';
     return (
         <div className="flex items-center justify-center gap-10">
             {/* Discard pile */}
-            <div className="flex flex-col items-center gap-2">
+            <div id="discard-pile" className="flex flex-col items-center gap-2">
                 {game.drawStack > 0 && (
                     <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white">
                         +{game.drawStack} STACKED!
                     </span>
                 )}
-                <div className={`rc-card color-${topCard.color}`}>
+                <motion.div layoutId={topCard.id} className={`rc-card color-${topCard.color}`}>
                     <span>{display}</span>
                     <span>{display}</span>
                     <span>{display}</span>
-                </div>
+                </motion.div>
                 {dotColor && (
                     <div
                         className="size-4 rounded-full"
@@ -93,55 +109,82 @@ const canDraw  = isMyTurn && game.phase === 'playing';
 // ── Player hand ──────────────────────────────────────────────
 
 
-function PlayerHand({ game, isMyTurn, selectedId, onSelect, onPlay }: {
+function PlayerHand({ game, isMyTurn, onPlay, optimisticPlayedCard }: {
     game: ClientGameState;
     isMyTurn: boolean;
-    selectedId: string | null;
-    onSelect: (id: string | null) => void;
     onPlay: (card: Card) => void;
+    optimisticPlayedCard: Card | null;
 }) {
     const you = game.you;
+    const handContainerRef = useRef<HTMLDivElement>(null);
 
     const isPlayable = (card: Card) =>
         isMyTurn && game.phase === 'playing' && clientCanPlay(card, game.topCard, game.chosenColor, game.drawStack);
 
     const handleAction = (card: Card) => {
-        if (selectedId === card.id) {
-            onPlay(card);
-        } else {
-            onSelect(card.id);
-        }
+        onPlay(card);
     };
 
     return (
-        <div className="flex flex-col items-center gap-3 pb-4 px-4">
+        <div className="flex flex-col items-center gap-3 pb-4 w-full max-w-full">
             {/* Player badge */}
-            <div className="flex items-center gap-2 rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-1.5">
-                <span className="text-sm font-medium text-zinc-200">{you.name} (You)</span>
-                <span className="text-xs text-zinc-400">
+            <div className={`flex items-center gap-3 rounded-xl px-6 py-2 transition-all duration-300 mb-2 ${
+                isMyTurn 
+                    ? 'bg-blue-900 border-2 border-blue-400 shadow-[0_0_30px_rgba(59,130,246,0.6)] transform scale-110 z-10' 
+                    : 'bg-zinc-800 border-2 border-zinc-700 opacity-80'
+            }`}>
+                <span className={`text-lg font-black tracking-wider uppercase ${isMyTurn ? 'text-white' : 'text-zinc-300'}`}>
+                    {you.name} (You)
+                </span>
+                <span className={`text-sm font-bold ${isMyTurn ? 'text-blue-200' : 'text-zinc-400'}`}>
                     {you.hand.length} cards
                 </span>
+                {isMyTurn && (
+                    <span className="ml-2 text-xs font-black uppercase text-blue-300 animate-pulse bg-blue-950 px-2 py-1 rounded">
+                        🔥 YOUR TURN
+                    </span>
+                )}
             </div>
 
             {/* Card row */}
-            <div className="flex flex-row flex-wrap justify-center" style={{ minHeight: 110 }}>
-                {you.hand.map((card, idx) => {
-                    const playable = isPlayable(card);
-                    return (
-                        <CardComponent
-                            key={card.id}
-                            card={card}
-                            playable={playable}
-                            selected={selectedId === card.id}
-                            onAction={playable ? () => handleAction(card) : undefined}
-                            dealing
-                            dealDelay={idx * 40}
-                            style={{ marginLeft: idx > 0 ? -20 : 0 }}
-                        />
-                    );
-                })}
+            <div 
+                ref={handContainerRef}
+                className="w-full pb-6 pt-4 overflow-x-auto transition-none"
+                style={{ minHeight: 140 }}
+            >
+                <div className="flex flex-row shrink-0 min-w-full w-max justify-center px-4">
+                    {you.hand
+                        .filter(c => c.id !== optimisticPlayedCard?.id)
+                        .map((card, idx) => {
+                        const playable = isPlayable(card);
+                        return (
+                            <CardComponent
+                                key={card.id}
+                                card={card}
+                                playable={playable}
+                                onAction={playable ? () => handleAction(card) : undefined}
+                                dealing
+                                dealDelay={idx * 40}
+                                style={{ marginLeft: idx > 0 ? -20 : 0 }}
+                                draggable={true}
+                                onDragStart={() => {
+                                    if (handContainerRef.current) {
+                                        handContainerRef.current.classList.remove('overflow-x-auto');
+                                        handContainerRef.current.classList.add('overflow-visible');
+                                    }
+                                }}
+                                onDragEnd={() => {
+                                    if (handContainerRef.current) {
+                                        handContainerRef.current.classList.remove('overflow-visible');
+                                        handContainerRef.current.classList.add('overflow-x-auto');
+                                    }
+                                }}
+                                onPlayDrop={playable ? () => onPlay(card) : undefined}
+                            />
+                        );
+                    })}
+                </div>
             </div>
-
         </div>
     );
 }
@@ -245,11 +288,15 @@ export default function GameBoard({ socket, state }: Props) {
     if (!game) return null;
 
     const isMyTurn = game.currentPlayerId === playerId;
-    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [optimisticPlayedCard, setOptimisticPlayedCard] = useState<Card | null>(null);
+
+    useEffect(() => {
+        setOptimisticPlayedCard(null);
+    }, [game.topCard.id, game.you.hand.length]);
 
     const handlePlay = (card: Card) => {
         socket.emit(C2S.PLAY_CARD, { roomCode: game.roomCode, playerId, cardId: card.id });
-        setSelectedId(null);
+        setOptimisticPlayedCard(card);
     };
 
     const handleDraw = () => {
@@ -269,33 +316,33 @@ export default function GameBoard({ socket, state }: Props) {
     };
 
     return (
-        <div
-            className="flex flex-col h-screen bg-zinc-900"
-            onClick={() => setSelectedId(null)}
-        >
-            {/* Opponents */}
-            <div className="flex justify-center gap-6 p-4">
-                {game.opponents.map((opp) => (
-                    <OpponentArea
-                        key={opp.id}
-                        opponent={opp}
-                    />
-                ))}
-            </div>
+        <LayoutGroup>
+            <div
+                className="flex flex-col h-screen bg-zinc-900"
+            >
+                {/* Opponents */}
+                <div className="flex justify-center gap-6 p-4">
+                    {game.opponents.map((opp) => (
+                        <OpponentArea
+                            key={opp.id}
+                            opponent={opp}
+                            isActive={game.currentPlayerId === opp.id}
+                        />
+                    ))}
+                </div>
 
-            {/* Table center */}
-            <div className="flex flex-1 items-center justify-center">
-                <TableCenter game={game} isMyTurn={isMyTurn} onDraw={handleDraw} />
-            </div>
+                {/* Table center */}
+                <div className="flex flex-1 items-center justify-center">
+                    <TableCenter game={game} isMyTurn={isMyTurn} onDraw={handleDraw} optimisticPlayedCard={optimisticPlayedCard} />
+                </div>
 
-            {/* Player hand */}
-            <PlayerHand
-                game={game}
-                isMyTurn={isMyTurn}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-                onPlay={handlePlay}
-            />
+                {/* Player hand */}
+                <PlayerHand
+                    game={game}
+                    isMyTurn={isMyTurn}
+                    onPlay={handlePlay}
+                    optimisticPlayedCard={optimisticPlayedCard}
+                />
 
             {/* Color chooser */}
             {game.phase === 'choosing_color' && isMyTurn && (
@@ -319,10 +366,11 @@ export default function GameBoard({ socket, state }: Props) {
                 />
             )}
 
-            {/* Game over */}
-            {game.phase === 'game_over' && game.winnerId && (
-                <GameOverOverlay game={game} />
-            )}
-        </div>
+                {/* Game over */}
+                {game.phase === 'game_over' && game.winnerId && (
+                    <GameOverOverlay game={game} />
+                )}
+            </div>
+        </LayoutGroup>
     );
 }

@@ -20,9 +20,7 @@
         0 4px 6px rgba(0, 0, 0, 0.4),
         0 8px 20px rgba(0, 0, 0, 0.35),
         inset 0 1px 0 rgba(255, 255, 255, 0.25);
-    transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
-                box-shadow 0.18s ease,
-                opacity 0.15s ease;
+    transition: box-shadow 0.18s ease, opacity 0.15s ease;
     overflow: hidden;
 }
 
@@ -31,24 +29,26 @@
 .color-red {
     background: radial-gradient(ellipse at 40% 35%, #f87171, #dc2626 55%, #991b1b);
 }
+
 .color-blue {
     background: radial-gradient(ellipse at 40% 35%, #60a5fa, #2563eb 55%, #1e3a8a);
 }
+
 .color-green {
     background: radial-gradient(ellipse at 40% 35%, #4ade80, #16a34a 55%, #14532d);
 }
+
 .color-yellow {
     background: radial-gradient(ellipse at 40% 35%, #fde68a, #f59e0b 55%, #b45309);
 }
+
 .color-wild {
     background:
-        conic-gradient(
-            from 0deg at 50% 50%,
-            #dc2626   0deg  90deg,
-            #2563eb  90deg 180deg,
+        conic-gradient(from 0deg at 50% 50%,
+            #dc2626 0deg 90deg,
+            #2563eb 90deg 180deg,
             #16a34a 180deg 270deg,
-            #f59e0b 270deg 360deg
-        );
+            #f59e0b 270deg 360deg);
 }
 
 /* ── Inner oval ─────────────────────────────────────────────── */
@@ -67,7 +67,7 @@
 
 /* ── Corner values ──────────────────────────────────────────── */
 
-.rc-card > span:nth-child(1) {
+.rc-card>span:nth-child(1) {
     position: absolute;
     top: 5px;
     left: 7px;
@@ -80,7 +80,7 @@
     z-index: 1;
 }
 
-.rc-card > span:nth-child(3) {
+.rc-card>span:nth-child(3) {
     position: absolute;
     bottom: 5px;
     right: 7px;
@@ -96,7 +96,7 @@
 
 /* ── Center value ───────────────────────────────────────────── */
 
-.rc-card > span:nth-child(2) {
+.rc-card>span:nth-child(2) {
     position: relative;
     z-index: 1;
     font-size: 1.75rem;
@@ -111,7 +111,7 @@
 }
 
 /* Yellow: dark text for contrast */
-.color-yellow > span {
+.color-yellow>span {
     color: #1c1917;
     text-shadow: 0 1px 2px rgba(255, 255, 255, 0.2);
     -webkit-text-stroke: 0;
@@ -124,12 +124,10 @@
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: linear-gradient(
-        135deg,
-        rgba(255, 255, 255, 0.18) 0%,
-        rgba(255, 255, 255, 0.06) 40%,
-        transparent 60%
-    );
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.18) 0%,
+            rgba(255, 255, 255, 0.06) 40%,
+            transparent 60%);
     pointer-events: none;
     z-index: 2;
 }
@@ -140,29 +138,14 @@
     cursor: pointer;
     border-color: rgba(255, 255, 255, 0.85);
     box-shadow:
-        0 0 0 2px #3b82f6,
-        0 0 14px rgba(59, 130, 246, 0.5),
         0 6px 16px rgba(0, 0, 0, 0.45),
         inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .rc-card.playable:hover {
-    transform: translateY(-12px) scale(1.04);
     box-shadow:
-        0 0 0 2.5px #60a5fa,
-        0 0 22px rgba(96, 165, 250, 0.6),
         0 14px 28px rgba(0, 0, 0, 0.5),
         inset 0 1px 0 rgba(255, 255, 255, 0.35);
-}
-
-.rc-card.selected {
-    animation: none;
-    transform: translateY(-22px) scale(1.18);
-    z-index: 50;
-    box-shadow:
-        0 12px 32px rgba(0, 0, 0, 0.65),
-        0 4px 10px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .rc-card.not-playable {
@@ -178,6 +161,7 @@
         opacity: 0;
         transform: translateY(30px) scale(0.85) rotate(-4deg);
     }
+
     to {
         opacity: 1;
         transform: translateY(0) scale(1) rotate(0deg);
@@ -202,20 +186,16 @@
 /* Diamond pattern for card back */
 .rc-card.card-back::before {
     background:
-        repeating-linear-gradient(
-            45deg,
+        repeating-linear-gradient(45deg,
             rgba(255, 255, 255, 0.04) 0px,
             rgba(255, 255, 255, 0.04) 2px,
             transparent 2px,
-            transparent 8px
-        ),
-        repeating-linear-gradient(
-            -45deg,
+            transparent 8px),
+        repeating-linear-gradient(-45deg,
             rgba(255, 255, 255, 0.04) 0px,
             rgba(255, 255, 255, 0.04) 2px,
             transparent 2px,
-            transparent 8px
-        );
+            transparent 8px);
     border: 2px solid rgba(255, 255, 255, 0.15);
     background-color: transparent;
     transform: none;
@@ -223,7 +203,7 @@
     inset: 6px;
 }
 
-.rc-card.card-back > span {
+.rc-card.card-back>span {
     position: relative;
     z-index: 1;
     font-size: 0.7rem;
@@ -242,8 +222,6 @@
 .rc-card.draw-pile-card:hover {
     transform: translateY(-6px) scale(1.05);
     box-shadow:
-        0 0 0 2px #60a5fa,
-        0 0 18px rgba(96, 165, 250, 0.5),
         0 10px 24px rgba(0, 0, 0, 0.5),
         inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
