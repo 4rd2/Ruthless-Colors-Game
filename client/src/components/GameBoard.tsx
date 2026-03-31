@@ -318,7 +318,7 @@ export default function GameBoard({ socket, state }: Props) {
     return (
         <LayoutGroup>
             <div
-                className="flex flex-col h-screen bg-zinc-900"
+                className="flex flex-col min-h-svh bg-zinc-900"
             >
                 {/* Opponents */}
                 <div className="flex justify-center gap-6 p-4">
