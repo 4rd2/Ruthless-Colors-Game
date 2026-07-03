@@ -10,6 +10,7 @@ import { C2S } from '@shared/events';
 import { Card, CardColor, CardValue, ClientGameState, Direction, GamePhase, OpponentView } from '@shared/types';
 import { AppState } from '../App';
 import { CardComponent, CardBack } from './Card';
+import { HandCarousel } from './HandCarousel';
 import { VALUE_DISPLAY, clientCanPlay } from '../utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -200,14 +201,15 @@ function PlayerHand({ game, isMyTurn, onPlay, optimisticPlayedCard }: {
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerW, setContainerW] = useState(0);
     const [cardW, setCardW] = useState(72);
-    const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
     // Wrappers are transformed (own stacking contexts), so the dragged
     // card's wrapper must be raised above its siblings explicitly.
     const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
 
-    // Touch devices confirm plays with a second tap
+    // Touch devices get the scrollable carousel; desktop keeps the hover fan.
+    // `?touch` forces carousel mode for desktop testing/emulation.
     const coarsePointer = useMemo(
-        () => window.matchMedia('(pointer: coarse)').matches,
+        () => window.matchMedia('(pointer: coarse)').matches
+            || new URLSearchParams(window.location.search).has('touch'),
         [],
     );
 
@@ -216,6 +218,7 @@ function PlayerHand({ game, isMyTurn, onPlay, optimisticPlayedCard }: {
     useEffect(() => { isInitialDeal.current = false; }, []);
 
     useLayoutEffect(() => {
+        if (coarsePointer) return; // carousel measures itself
         const el = containerRef.current;
         if (!el) return;
         const measure = () => {
@@ -227,18 +230,6 @@ function PlayerHand({ game, isMyTurn, onPlay, optimisticPlayedCard }: {
         const ro = new ResizeObserver(measure);
         ro.observe(el);
         return () => ro.disconnect();
-    }, []);
-
-    // Tap outside any card lowers the raised one
-    useEffect(() => {
-        if (!coarsePointer) return;
-        const onPointerDown = (e: PointerEvent) => {
-            if (!(e.target instanceof Element) || !e.target.closest('.rc-card')) {
-                setSelectedCardId(null);
-            }
-        };
-        document.addEventListener('pointerdown', onPointerDown);
-        return () => document.removeEventListener('pointerdown', onPointerDown);
     }, [coarsePointer]);
 
     const cards = you.hand.filter(c => c.id !== optimisticPlayedCard?.id);
@@ -251,13 +242,15 @@ function PlayerHand({ game, isMyTurn, onPlay, optimisticPlayedCard }: {
         ? Math.min(cardW * 0.72, Math.max(10, (containerW - cardW - 16) / (n - 1)))
         : 0;
     const anglePer = Math.min(7, Math.max(2.5, 44 / Math.max(n, 1)));
-    const arcK = mid > 0 ? 16 / Math.pow(mid, 1.6) : 0;
+    // Half-circle wheel: radius such that arc spacing ≈ card spacing, so
+    // y drops follow the circle (only the top of the arc shows)
+    const anglePerRad = (anglePer * Math.PI) / 180;
+    const fanRadius = step > 0 ? step / Math.sin(anglePerRad) : 0;
 
     const isPlayable = (card: Card) =>
         isMyTurn && game.phase === GamePhase.Playing && clientCanPlay(card, game.topCard, game.chosenColor, game.drawStack);
 
     const handlePlayCard = (card: Card) => {
-        setSelectedCardId(null);
         onPlay(card);
     };
 
@@ -287,55 +280,61 @@ function PlayerHand({ game, isMyTurn, onPlay, optimisticPlayedCard }: {
                 )}
             </div>
 
-            {/* Fanned card arc */}
-            <div
-                id="player-hand"
-                ref={containerRef}
-                className="relative w-full overflow-visible"
-                style={{ height: cardH + 64 }}
-            >
-                <AnimatePresence custom={playedId}>
-                    {cards.map((card, i) => {
-                        const playable = isPlayable(card);
-                        const raised = coarsePointer && selectedCardId === card.id;
-                        const x = (i - mid) * step - cardW / 2;
-                        const y = Math.pow(Math.abs(i - mid), 1.6) * arcK + 20;
-                        const rotate = (i - mid) * anglePer;
-                        return (
-                            <motion.div
-                                key={card.id}
-                                className="absolute left-1/2 top-0"
-                                style={{ zIndex: raised || draggingCardId === card.id ? 40 : i }}
-                                animate={{ x, y: raised ? y - 6 : y, rotate: raised ? 0 : rotate }}
-                                variants={{
-                                    exit: (topId: string) => (
-                                        card.id === topId
-                                            ? { opacity: 0, transition: { duration: 0 } }
-                                            : { opacity: 0, scale: 0.8, y: y + 20, transition: { duration: 0.18 } }
-                                    ),
-                                }}
-                                exit="exit"
-                                transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-                            >
-                                <CardComponent
-                                    card={card}
-                                    playable={playable}
-                                    onAction={playable ? () => handlePlayCard(card) : undefined}
-                                    dealing
-                                    dealDelay={isInitialDeal.current ? i * 40 : 0}
-                                    draggable={true}
-                                    onDragStart={() => setDraggingCardId(card.id)}
-                                    onDragEnd={() => setDraggingCardId(null)}
-                                    onPlayDrop={playable ? () => handlePlayCard(card) : undefined}
-                                    requireConfirm={coarsePointer}
-                                    raised={raised}
-                                    onRaise={() => setSelectedCardId(prev => prev === card.id ? null : card.id)}
-                                />
-                            </motion.div>
-                        );
-                    })}
-                </AnimatePresence>
-            </div>
+            {/* Touch: scrollable fan carousel — center card is highlighted */}
+            {coarsePointer ? (
+                <HandCarousel
+                    cards={cards}
+                    isPlayable={isPlayable}
+                    onPlay={handlePlayCard}
+                    isMyTurn={isMyTurn}
+                />
+            ) : (
+                /* Desktop: hover fan */
+                <div
+                    id="player-hand"
+                    ref={containerRef}
+                    className="relative w-full overflow-visible"
+                    style={{ height: cardH + 64 }}
+                >
+                    <AnimatePresence custom={playedId}>
+                        {cards.map((card, i) => {
+                            const playable = isPlayable(card);
+                            const x = (i - mid) * step - cardW / 2;
+                            const y = fanRadius * (1 - Math.cos((i - mid) * anglePerRad)) + 20;
+                            const rotate = (i - mid) * anglePer;
+                            return (
+                                <motion.div
+                                    key={card.id}
+                                    className="absolute left-1/2 top-0"
+                                    style={{ zIndex: draggingCardId === card.id ? 40 : i }}
+                                    animate={{ x, y, rotate }}
+                                    variants={{
+                                        exit: (topId: string) => (
+                                            card.id === topId
+                                                ? { opacity: 0, transition: { duration: 0 } }
+                                                : { opacity: 0, scale: 0.8, y: y + 20, transition: { duration: 0.18 } }
+                                        ),
+                                    }}
+                                    exit="exit"
+                                    transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                                >
+                                    <CardComponent
+                                        card={card}
+                                        playable={playable}
+                                        onAction={playable ? () => handlePlayCard(card) : undefined}
+                                        dealing
+                                        dealDelay={isInitialDeal.current ? i * 40 : 0}
+                                        dragMode="free"
+                                        onDragStart={() => setDraggingCardId(card.id)}
+                                        onDragEnd={() => setDraggingCardId(null)}
+                                        onPlayDrop={playable ? () => handlePlayCard(card) : undefined}
+                                    />
+                                </motion.div>
+                            );
+                        })}
+                    </AnimatePresence>
+                </div>
+            )}
         </div>
     );
 }

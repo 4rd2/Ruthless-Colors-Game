@@ -7,6 +7,8 @@
 :root {
     /* Cards scale with the viewport; glyphs follow via em sizing */
     --card-w: clamp(58px, 13vw, 84px);
+    /* Horizontal distance between cards in the touch carousel */
+    --carousel-step: calc(var(--card-w) * 0.62);
 }
 
 @media (orientation: landscape) and (max-height: 500px) {
@@ -223,4 +225,75 @@
     box-shadow:
         0 10px 24px rgba(0, 0, 0, 0.5),
         inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+/* ── Hand carousel (touch devices) ──────────────────────────── */
+
+.hand-carousel {
+    display: flex;
+    align-items: flex-end;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;   /* no page bounce / back-swipe */
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* Headroom for the raised, scaled focused card + its shadow */
+    padding-top: 48px;
+    padding-bottom: 10px;
+}
+
+.hand-carousel::-webkit-scrollbar {
+    display: none;
+}
+
+/* Real spacer boxes (not padding — Safari collapses trailing padding
+   in horizontal scrollers, breaking the scrollLeft = i*step math) */
+.carousel-spacer {
+    flex: 0 0 calc(50% - var(--carousel-step) / 2);
+}
+
+.carousel-slot {
+    flex: 0 0 var(--carousel-step);
+    /* Without this, the min-width:auto flex floor inflates slots to the
+       card's width — killing the overlap and the scrollLeft = i*step math */
+    min-width: 0;
+    scroll-snap-align: center;
+    display: flex;
+    justify-content: center;
+    position: relative;
+}
+
+.carousel-xform {
+    will-change: transform;
+}
+
+/* Focused playable card glows */
+.carousel-slot.is-focused .rc-card.playable {
+    border-color: rgba(255, 255, 255, 0.95);
+    box-shadow:
+        0 0 18px rgba(96, 165, 250, 0.65),
+        0 10px 24px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* Focused but unplayable: subtle neutral ring so "selected" still reads */
+.carousel-slot.is-focused .rc-card.not-playable {
+    opacity: 0.55;
+    box-shadow:
+        0 0 12px rgba(255, 255, 255, 0.18),
+        0 8px 20px rgba(0, 0, 0, 0.45);
+}
+
+@keyframes rc-shake {
+    0%, 100% { translate: 0 0; }
+    20% { translate: -7px 0; }
+    40% { translate: 6px 0; }
+    60% { translate: -4px 0; }
+    80% { translate: 3px 0; }
+}
+
+/* Uses the separate `translate` property so it composes with the
+   imperative `transform` written by the carousel scroll handler */
+.carousel-xform.shake {
+    animation: rc-shake 0.3s ease;
 }

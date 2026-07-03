@@ -9,31 +9,39 @@ import { Card } from '@shared/types';
 import { VALUE_DISPLAY, CARD_DESCRIPTIONS } from '../utils';
 import './cards.css';
 
+export type CardDragMode = 'free' | 'vertical' | 'none';
+
 interface CardProps {
     card: Card;
     /** undefined = neutral (no highlight), true = playable, false = dimmed */
     playable?: boolean;
-    /** Plays the card (single click on desktop, confirm tap on touch) */
+    /** Plays the card (or selects it — the parent decides) */
     onAction?: () => void;
     /** Animate in from below on mount */
     dealing?: boolean;
     dealDelay?: number;
     style?: React.CSSProperties;
-    draggable?: boolean;
+    /**
+     * 'free' = drag anywhere (desktop fan), 'vertical' = drag-y only so
+     * horizontal swipes keep scrolling the carousel, 'none' = no drag.
+     */
+    dragMode?: CardDragMode;
     onPlayDrop?: () => void;
     onDragStart?: () => void;
     onDragEnd?: () => void;
-    /** Touch mode: first tap raises the card, second tap plays it */
-    requireConfirm?: boolean;
-    raised?: boolean;
-    /** Toggle the raised state (touch mode) */
-    onRaise?: () => void;
+    /** Show the description tooltip (carousel focused card) */
+    showDescription?: boolean;
+    /** Allow the desktop hover lift (default true) */
+    hoverable?: boolean;
 }
+
+/** Flicking the focused card up at least this far plays it */
+const FLICK_UP_THRESHOLD = -60;
 
 export function CardComponent({
     card, playable, onAction, dealing, dealDelay, style,
-    draggable, onPlayDrop, onDragStart, onDragEnd,
-    requireConfirm, raised, onRaise,
+    dragMode = 'none', onPlayDrop, onDragStart, onDragEnd,
+    showDescription, hoverable = true,
 }: CardProps) {
     const cardRef  = useRef<HTMLDivElement>(null);
     const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -55,14 +63,6 @@ export function CardComponent({
     const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (hasDragged.current) return;
-        if (requireConfirm) {
-            if (raised && playable && onAction) {
-                onAction();
-            } else {
-                onRaise?.();
-            }
-            return;
-        }
         if (onAction) onAction();
     };
 
@@ -72,14 +72,14 @@ export function CardComponent({
         setTooltipPos({ x: rect.left + rect.width / 2, y: rect.top - 8 });
     };
 
-    // Raised cards (touch mode) show their description automatically
+    // The carousel's focused card shows its description once settled
     useEffect(() => {
-        if (raised) {
-            const t = setTimeout(showTooltip, 120); // after the lift settles a bit
+        if (showDescription) {
+            const t = setTimeout(showTooltip, 120); // let the lift settle a bit
             return () => clearTimeout(t);
         }
         setTooltipPos(null);
-    }, [raised]);
+    }, [showDescription]);
 
     const startHold = (e: React.MouseEvent | React.TouchEvent) => {
         if ('button' in e && e.button !== 0) return;
@@ -88,7 +88,7 @@ export function CardComponent({
 
     const endHold = () => {
         if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; }
-        if (!raised) setTooltipPos(null);
+        if (!showDescription) setTooltipPos(null);
     };
 
     const handleDragStart = () => {
@@ -107,7 +107,14 @@ export function CardComponent({
         }
         setTimeout(() => { hasDragged.current = false; }, 100);
         if (onDragEnd) onDragEnd();
-        if (!draggable || !onPlayDrop) return;
+        if (dragMode === 'none' || !onPlayDrop) return;
+
+        // Vertical mode: an upward flick counts as a play
+        if (dragMode === 'vertical' && info.offset.y < FLICK_UP_THRESHOLD) {
+            onPlayDrop();
+            return;
+        }
+
         const discardPile = document.getElementById('discard-pile');
         if (discardPile) {
             const rect = discardPile.getBoundingClientRect();
@@ -123,21 +130,18 @@ export function CardComponent({
         <>
             <motion.div
                 layoutId={card.id}
-                drag={draggable}
+                drag={dragMode === 'free' ? true : dragMode === 'vertical' ? 'y' : false}
                 dragSnapToOrigin={true}
+                dragConstraints={dragMode === 'vertical' ? { top: -48, bottom: 0 } : undefined}
+                dragElastic={dragMode === 'vertical' ? 0.15 : undefined}
                 initial={dealing ? { opacity: 0, y: 30, scale: 0.85, rotate: -4 } : false}
-                animate={{
-                    opacity: 1,
-                    y: raised ? -28 : 0,
-                    scale: raised ? 1.12 : 1,
-                    rotate: 0,
-                }}
+                animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
                 transition={{
                     duration: 0.28,
                     delay: dealing && dealDelay ? dealDelay / 1000 : 0,
                     ease: [0.34, 1.4, 0.64, 1],
                 }}
-                whileHover={playable && !requireConfirm ? { y: -12, scale: 1.04 } : undefined}
+                whileHover={playable && hoverable ? { y: -12, scale: 1.04 } : undefined}
                 whileDrag={{ scale: 1.15, rotate: card.id.charCodeAt(0) % 2 === 0 ? 4 : -4 }}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
