@@ -6,10 +6,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Socket } from 'socket.io-client';
 import { C2S } from '@shared/events';
 import { AppState } from '../App';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
 
 
 
@@ -17,10 +13,10 @@ import { Separator } from '@/components/ui/separator';
 
 function Divider({ label }: { label: string }) {
     return (
-        <div className="relative flex items-center gap-2 my-2">
-            <Separator className="flex-1" />
-            <span className="text-xs text-zinc-500 shrink-0">{label}</span>
-            <Separator className="flex-1" />
+        <div>
+            <div />
+            <span>{label}</span>
+            <div />
         </div>
     );
 }
@@ -30,9 +26,9 @@ function Divider({ label }: { label: string }) {
 function ErrorBox({ message }: { message: string | null }) {
     if (!message) return null;
     return (
-        <Alert variant="destructive">
-            <AlertDescription>{message}</AlertDescription>
-        </Alert>
+        <div>
+            {message}
+        </div>
     );
 }
 
@@ -40,11 +36,11 @@ function ErrorBox({ message }: { message: string | null }) {
 
 function Title({ subtitle }: { subtitle?: string }) {
     return (
-        <div className="mb-6 text-center">
-            <h1 className="text-4xl font-black tracking-widest uppercase text-white">
+        <div>
+            <h1>
                 RUTHLESS COLORS
             </h1>
-            {subtitle && <p className="mt-1 text-sm text-zinc-400">{subtitle}</p>}
+            {subtitle && <p>{subtitle}</p>}
         </div>
     );
 }
@@ -161,8 +157,8 @@ export default function LobbyScreen({ socket, patchState }: Props) {
 
     if (urlRoom && checking) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-zinc-900">
-                <div className="w-full max-w-sm px-4">
+            <div>
+                <div>
                     <Title subtitle="Checking game status..." />
                 </div>
             </div>
@@ -173,13 +169,13 @@ export default function LobbyScreen({ socket, patchState }: Props) {
 
     if (urlRoom && roomCheck && !roomCheck.exists) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-zinc-900">
-                <div className="flex w-full max-w-sm flex-col gap-4 px-4">
+            <div>
+                <div>
                     <Title />
-                    <p className="text-center text-sm text-zinc-400">Room not found or game has ended.</p>
-                    <Button variant="outline" className="border-blue-700 text-blue-400 hover:bg-blue-900/40 hover:text-blue-300" onClick={goHome}>
+                    <p>Room not found or game has ended.</p>
+                    <button style={{ width: 'auto', padding: '12px 24px' }} onClick={goHome}>
                         Back to Home
-                    </Button>
+                    </button>
                 </div>
             </div>
         );
@@ -189,23 +185,22 @@ export default function LobbyScreen({ socket, patchState }: Props) {
 
     if (urlRoom && roomCheck?.exists) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-zinc-900">
-                <div className="w-full max-w-sm px-4">
+            <div>
+                <div>
                     <Title
                         subtitle={`You've been invited to room `}
                     />
-                    <p className="mb-4 text-center text-sm text-zinc-400">
+                    <p>
                         Room{' '}
-                        <span className="font-mono font-bold tracking-widest text-white">
+                        <span>
                             {urlRoom}
                         </span>
                     </p>
 
-                    <div className="flex flex-col gap-3">
-                        <Input
+                    <div>
+                        <input
                             ref={nameRef}
                             type="text"
-                            className="text-zinc-100 placeholder:text-zinc-500 bg-zinc-800 border-zinc-700"
                             placeholder="Your name"
                             maxLength={16}
                             autoComplete="off"
@@ -213,14 +208,16 @@ export default function LobbyScreen({ socket, patchState }: Props) {
                             onChange={e => setName(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && handleInviteAction()}
                         />
-                        <Button className="bg-blue-600 hover:bg-blue-500 text-white border-transparent" onClick={handleInviteAction}>
+                        <button
+                            onClick={handleInviteAction}
+                        >
                             {roomCheck.gameStarted ? '🔄 Rejoin Game' : 'Join Game'}
-                        </Button>
+                        </button>
                         <ErrorBox message={error} />
                         <Divider label="or" />
-                        <Button variant="ghost" className="text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800" onClick={goHome}>
+                        <button style={{ opacity: 0.8 }} onClick={goHome}>
                             Go to Main Menu
-                        </Button>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -230,31 +227,29 @@ export default function LobbyScreen({ socket, patchState }: Props) {
     // ── Standard lobby ──────────────────────────────────────
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-zinc-900">
-            <div className="w-full max-w-sm px-4">
+        <div>
+            <div>
                 <Title subtitle="Brutal. Stackable. No mercy given." />
 
-                <div className="flex flex-col gap-3">
-                    <Input
+                <div>
+                    <input
                         ref={nameRef}
                         type="text"
-                        className="text-zinc-100 placeholder:text-zinc-500 bg-zinc-800 border-zinc-700"
-                            placeholder="Your name"
+                        placeholder="Your name"
                         maxLength={16}
                         autoComplete="off"
                         value={name}
                         onChange={e => setName(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && handleCreate()}
                     />
-                    <Button className="bg-blue-600 hover:bg-blue-500 text-white border-transparent" onClick={handleCreate}>
+                    <button onClick={handleCreate}>
                         Create Game
-                    </Button>
+                    </button>
 
                     <Divider label="or join a game" />
 
-                    <Input
+                    <input
                         type="text"
-                        className="text-zinc-100 placeholder:text-zinc-500 bg-zinc-800 border-zinc-700"
                         placeholder="Enter room code"
                         maxLength={6}
                         autoComplete="off"
@@ -263,15 +258,15 @@ export default function LobbyScreen({ socket, patchState }: Props) {
                         onKeyDown={e => e.key === 'Enter' && handleJoin()}
                         style={{ textTransform: 'uppercase', letterSpacing: '4px', textAlign: 'center' }}
                     />
-                    <Button className="bg-blue-600 hover:bg-blue-500 text-white border-transparent" onClick={handleJoin}>
+                    <button onClick={handleJoin}>
                         Join Game
-                    </Button>
+                    </button>
 
                     <Divider label="or rejoin a game" />
 
-                    <Button variant="outline" className="border-blue-700 text-blue-400 hover:bg-blue-900/40 hover:text-blue-300" onClick={handleRejoin}>
+                    <button onClick={handleRejoin}>
                         🔄 Rejoin Game
-                    </Button>
+                    </button>
 
                     <ErrorBox message={error} />
                 </div>

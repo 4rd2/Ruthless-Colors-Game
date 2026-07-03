@@ -7,9 +7,6 @@ import { Socket } from 'socket.io-client';
 import { C2S } from '@shared/events';
 import { AppState } from '../App';
 import { ToastType } from './Toast';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 
 
@@ -49,57 +46,56 @@ export default function WaitingRoom({ socket, state, addToast }: Props) {
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-zinc-900 px-4 py-8">
-            <Card className="w-full max-w-md bg-zinc-800 border-zinc-700 text-zinc-100">
-                <CardHeader>
-                    <CardTitle className="text-white">🃏 Waiting for Players</CardTitle>
-                    <CardDescription className="text-zinc-400">Share this code with your friends:</CardDescription>
-                </CardHeader>
+        <div>
+            <div>
+                <h2>🃏 Waiting for Players</h2>
+                <p>Share this code with your friends:</p>
 
-                <CardContent className="flex flex-col gap-4">
-                    {/* Room code row */}
-                    <div className="flex flex-col items-center gap-3 rounded-lg bg-zinc-900 px-4 py-3">
-                        <span className="font-mono text-2xl font-bold tracking-widest text-white">
-                            {lobby.roomCode}
-                        </span>
-                        <div className="flex w-full gap-2">
-                            <Button size="sm" variant="outline" className="flex-1 bg-blue-600 hover:bg-blue-500 text-white border-transparent" onClick={copyCode}>{copyCodeLabel}</Button>
-                            <Button size="sm" variant="outline" className="flex-1 bg-blue-600 hover:bg-blue-500 text-white border-transparent" onClick={copyLink}>{copyLinkLabel}</Button>
-                        </div>
+                {/* Room code row */}
+                <div>
+                    <span>
+                        {lobby.roomCode}
+                    </span>
+                    <div>
+                        <button onClick={copyCode}>{copyCodeLabel}</button>
+                        <button onClick={copyLink}>{copyLinkLabel}</button>
                     </div>
+                </div>
 
-                    {/* Player list */}
-                    <ul className="flex flex-col gap-1">
-                        {lobby.players.map(p => (
-                            <li
-                                key={p.id}
-                                className="flex items-center gap-2 rounded-md px-2 py-1.5 bg-zinc-900/50 border border-zinc-700"
-                            >
-                                <span className="size-2 rounded-full bg-blue-500" />
-                                <span className="flex-1 text-zinc-200">{p.name}</span>
-                                {p.isHost && (
-                                    <Badge className="bg-blue-600 text-white border-transparent">Host</Badge>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
+                {/* Player list */}
+                <ul>
+                    {lobby.players.map(p => (
+                        <li
+                            key={p.id}
+                        >
+                            <span />
+                            <span>{p.name}</span>
+                            {p.isHost && (
+                                <span>
+                                    Host
+                                </span>
+                            )}
+                        </li>
+                    ))}
+                </ul>
 
-                    <p className="text-sm text-zinc-500">
-                        {lobby.players.length} / {lobby.maxPlayers} players
-                    </p>
+                <p>
+                    {lobby.players.length} / {lobby.maxPlayers} players
+                </p>
+
+                <div>
                     {isHost ? (
-                        <Button
-                            className="w-full bg-blue-600 hover:bg-blue-500 text-white border-transparent disabled:bg-zinc-700 disabled:text-zinc-500"
+                        <button
                             disabled={lobby.players.length < 2}
                             onClick={startGame}
                         >
                             Start Game
-                        </Button>
+                        </button>
                     ) : (
-                        <p className="text-sm text-zinc-500">Waiting for host to start...</p>
+                        <p>Waiting for host to start...</p>
                     )}
-                </CardContent>
-            </Card>
+                </div>
+            </div>
         </div>
     );
 }
