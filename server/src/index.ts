@@ -10,7 +10,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 
 import { C2S, S2C } from '../../shared/events';
-import { CardColor } from '../../shared/types';
+import { CardColor, GamePhase } from '../../shared/types';
 import { RECONNECT_GRACE_MS } from '../../shared/constants';
 import {
     createRoom,
@@ -74,6 +74,18 @@ function broadcastGameState(roomCode: string): void {
             );
         }
     }
+}
+
+// ─── Helper: announce game over once the phase flips ────────
+
+function emitGameOver(roomCode: string): void {
+    const game = getGame(roomCode);
+    if (!game || game.phase !== GamePhase.GameOver || !game.winnerId) return;
+    const winner = game.players.find((p) => p.id === game.winnerId);
+    io.to(roomCode).emit(S2C.GAME_OVER, {
+        winnerId: game.winnerId,
+        winnerName: winner?.name ?? 'Someone',
+    });
 }
 
 // ─── Socket.IO Connection Handler ───────────────────────────
@@ -156,6 +168,10 @@ io.on('connection', (socket) => {
         const game = getGame(data.roomCode);
         if (!game) return;
 
+        // Look up the card before it leaves the player's hand
+        const actor = game.players.find((p) => p.id === data.playerId);
+        const playedCard = actor?.hand.find((c) => c.id === data.cardId);
+
         const result = playCard(game, data.playerId, data.cardId, data.chosenColor);
         if (!result.success) {
             socket.emit(S2C.ERROR, { message: result.error });
@@ -163,6 +179,9 @@ io.on('connection', (socket) => {
         }
 
         // Broadcast events
+        if (playedCard) {
+            io.to(data.roomCode).emit(S2C.CARD_PLAYED, { playerId: data.playerId, card: playedCard });
+        }
         if (result.eliminatedPlayers) {
             for (const p of result.eliminatedPlayers) {
                 io.to(data.roomCode).emit(S2C.PLAYER_ELIMINATED, { playerId: p.id, playerName: p.name });
@@ -172,6 +191,7 @@ io.on('connection', (socket) => {
             io.to(data.roomCode).emit(S2C.HANDS_PASSED);
         }
 
+        emitGameOver(data.roomCode);
         broadcastGameState(data.roomCode);
     });
 
@@ -180,11 +200,16 @@ io.on('connection', (socket) => {
         const game = getGame(data.roomCode);
         if (!game) return;
 
+        // Capture how many cards this draw will pull (stack penalty or 1)
+        const drawCount = game.drawStack > 0 ? game.drawStack : 1;
+
         const result = drawCard(game, data.playerId);
         if (!result.success) {
             socket.emit(S2C.ERROR, { message: result.error });
             return;
         }
+
+        io.to(data.roomCode).emit(S2C.CARDS_DRAWN, { playerId: data.playerId, count: drawCount });
 
         if (result.eliminatedPlayers) {
             for (const p of result.eliminatedPlayers) {
@@ -192,6 +217,7 @@ io.on('connection', (socket) => {
             }
         }
 
+        emitGameOver(data.roomCode);
         broadcastGameState(data.roomCode);
     });
 
@@ -230,6 +256,7 @@ io.on('connection', (socket) => {
             player1: data.playerId,
             player2: data.targetPlayerId,
         });
+        emitGameOver(data.roomCode);
         broadcastGameState(data.roomCode);
     });
 
@@ -257,6 +284,7 @@ io.on('connection', (socket) => {
             }
         }
 
+        emitGameOver(data.roomCode);
         broadcastGameState(data.roomCode);
     });
 
@@ -365,6 +393,7 @@ io.on('connection', (socket) => {
                             playerId: player.id,
                             playerName: player.name,
                         });
+                        emitGameOver(room.code);
                         broadcastGameState(room.code);
                     }
                 }

@@ -2,7 +2,7 @@
 // Card Component
 // ============================================================
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, PanInfo } from 'framer-motion';
 import { Card } from '@shared/types';
@@ -13,8 +13,9 @@ interface CardProps {
     card: Card;
     /** undefined = neutral (no highlight), true = playable, false = dimmed */
     playable?: boolean;
-    /** First click plays */
+    /** Plays the card (single click on desktop, confirm tap on touch) */
     onAction?: () => void;
+    /** Animate in from below on mount */
     dealing?: boolean;
     dealDelay?: number;
     style?: React.CSSProperties;
@@ -22,9 +23,18 @@ interface CardProps {
     onPlayDrop?: () => void;
     onDragStart?: () => void;
     onDragEnd?: () => void;
+    /** Touch mode: first tap raises the card, second tap plays it */
+    requireConfirm?: boolean;
+    raised?: boolean;
+    /** Toggle the raised state (touch mode) */
+    onRaise?: () => void;
 }
 
-export function CardComponent({ card, playable, onAction, dealing, dealDelay, style, draggable, onPlayDrop, onDragStart, onDragEnd }: CardProps) {
+export function CardComponent({
+    card, playable, onAction, dealing, dealDelay, style,
+    draggable, onPlayDrop, onDragStart, onDragEnd,
+    requireConfirm, raised, onRaise,
+}: CardProps) {
     const cardRef  = useRef<HTMLDivElement>(null);
     const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
@@ -38,7 +48,6 @@ export function CardComponent({ card, playable, onAction, dealing, dealDelay, st
         colorClass,
         playable === true  && 'playable',
         playable === false && 'not-playable',
-        dealing            && 'dealing',
     ].filter(Boolean).join(' ');
 
     const hasDragged = useRef(false);
@@ -46,6 +55,14 @@ export function CardComponent({ card, playable, onAction, dealing, dealDelay, st
     const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (hasDragged.current) return;
+        if (requireConfirm) {
+            if (raised && playable && onAction) {
+                onAction();
+            } else {
+                onRaise?.();
+            }
+            return;
+        }
         if (onAction) onAction();
     };
 
@@ -55,6 +72,15 @@ export function CardComponent({ card, playable, onAction, dealing, dealDelay, st
         setTooltipPos({ x: rect.left + rect.width / 2, y: rect.top - 8 });
     };
 
+    // Raised cards (touch mode) show their description automatically
+    useEffect(() => {
+        if (raised) {
+            const t = setTimeout(showTooltip, 120); // after the lift settles a bit
+            return () => clearTimeout(t);
+        }
+        setTooltipPos(null);
+    }, [raised]);
+
     const startHold = (e: React.MouseEvent | React.TouchEvent) => {
         if ('button' in e && e.button !== 0) return;
         holdTimer.current = setTimeout(showTooltip, 400);
@@ -62,16 +88,12 @@ export function CardComponent({ card, playable, onAction, dealing, dealDelay, st
 
     const endHold = () => {
         if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; }
-        setTooltipPos(null);
+        if (!raised) setTooltipPos(null);
     };
 
     const handleDragStart = () => {
         if (cardRef.current) {
             cardRef.current.style.zIndex = '9999';
-            // CSS animations (fill-mode: both) have higher cascade priority than
-            // inline styles, so the dealIn animation's held transform overrides
-            // framer-motion's drag transform. Strip the class so drag is visible.
-            cardRef.current.classList.remove('dealing');
         }
         hasDragged.current = true;
         if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; }
@@ -97,21 +119,31 @@ export function CardComponent({ card, playable, onAction, dealing, dealDelay, st
         }
     };
 
-    const animDelay = dealing && dealDelay ? { animationDelay: `${dealDelay}ms` } : {};
-
     return (
         <>
             <motion.div
                 layoutId={card.id}
                 drag={draggable}
                 dragSnapToOrigin={true}
-                whileHover={playable ? { y: -12, scale: 1.04 } : undefined}
+                initial={dealing ? { opacity: 0, y: 30, scale: 0.85, rotate: -4 } : false}
+                animate={{
+                    opacity: 1,
+                    y: raised ? -28 : 0,
+                    scale: raised ? 1.12 : 1,
+                    rotate: 0,
+                }}
+                transition={{
+                    duration: 0.28,
+                    delay: dealing && dealDelay ? dealDelay / 1000 : 0,
+                    ease: [0.34, 1.4, 0.64, 1],
+                }}
+                whileHover={playable && !requireConfirm ? { y: -12, scale: 1.04 } : undefined}
                 whileDrag={{ scale: 1.15, rotate: card.id.charCodeAt(0) % 2 === 0 ? 4 : -4 }}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
                 ref={cardRef}
                 className={classes}
-                style={{ ...style, ...animDelay }}
+                style={style}
                 onClick={handleClick}
                 onMouseDown={startHold}
                 onMouseUp={endHold}
@@ -127,7 +159,10 @@ export function CardComponent({ card, playable, onAction, dealing, dealDelay, st
             </motion.div>
 
             {tooltipPos && createPortal(
-                <div style={{ left: tooltipPos.x, top: tooltipPos.y }}>
+                <div
+                    className="pointer-events-none fixed z-[80] max-w-52 -translate-x-1/2 -translate-y-full rounded-lg border border-zinc-700 bg-zinc-900/95 px-3 py-2 text-center text-xs text-zinc-200 shadow-xl"
+                    style={{ left: tooltipPos.x, top: tooltipPos.y }}
+                >
                     {description}
                 </div>,
                 document.body,

@@ -2,17 +2,20 @@
 // Game Board
 // ============================================================
 
-import { useState, useEffect, useRef } from 'react';
-import { motion, LayoutGroup } from 'framer-motion';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { RotateCw } from 'lucide-react';
 import { Socket } from 'socket.io-client';
 import { C2S } from '@shared/events';
-import { Card, CardColor, ClientGameState, OpponentView } from '@shared/types';
+import { Card, CardColor, CardValue, ClientGameState, Direction, GamePhase, OpponentView } from '@shared/types';
 import { AppState } from '../App';
 import { CardComponent, CardBack } from './Card';
 import { VALUE_DISPLAY, clientCanPlay } from '../utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { EffectsLayer } from './effects/EffectsLayer';
+import { play } from '../sound';
 
 // ── Color helpers ────────────────────────────────────────────
 
@@ -30,6 +33,29 @@ const COLOR_OPTIONS: { color: CardColor; label: string; hex: string }[] = [
     { color: 'yellow' as CardColor, label: 'Yellow', hex: '#fdd835' },
 ];
 
+/** Deterministic per-card jitter for the discard pile stack */
+function cardJitter(id: string): { rot: number; dx: number; dy: number } {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+    return {
+        rot: (Math.abs(h) % 13) - 6,
+        dx: (Math.abs(h >> 3) % 5) - 2,
+        dy: (Math.abs(h >> 5) % 5) - 2,
+    };
+}
+
+/** Shared ring that travels between seats on turn change */
+function TurnRing() {
+    return (
+        <motion.div
+            layoutId="turn-ring"
+            className="pointer-events-none absolute -inset-1 rounded-2xl border-2 border-blue-400"
+            style={{ boxShadow: '0 0 20px rgba(59,130,246,0.55)' }}
+            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+        />
+    );
+}
+
 // ── Opponent area ────────────────────────────────────────────
 
 function OpponentArea({ opponent, isActive }: {
@@ -37,53 +63,101 @@ function OpponentArea({ opponent, isActive }: {
     isActive: boolean;
 }) {
     return (
-        <div className={`flex flex-col items-center gap-1 rounded-xl px-4 py-2 transition-all duration-300 ${
-            isActive 
-                ? 'bg-blue-900/60 border-2 border-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.5)] transform scale-110 z-10' 
-                : 'bg-zinc-800/80 border-2 border-zinc-700 opacity-60'
-        }`}>
-            <span className={`text-sm font-bold tracking-wide ${isActive ? 'text-white' : 'text-zinc-300'}`}>
-                {opponent.name} {isActive && '🔥'}
+        <div
+            data-player-id={opponent.id}
+            className={`relative flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors duration-300 sm:flex-col sm:gap-1 sm:px-4 sm:py-2 ${
+                opponent.isEliminated
+                    ? 'bg-zinc-900/80 border-2 border-zinc-800 opacity-40'
+                    : isActive
+                        ? 'bg-blue-900/60 border-2 border-blue-400'
+                        : 'bg-zinc-800/80 border-2 border-zinc-700 opacity-60'
+            }`}
+        >
+            {isActive && !opponent.isEliminated && <TurnRing />}
+            <span className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-black uppercase sm:hidden ${
+                isActive ? 'bg-blue-500 text-white' : 'bg-zinc-700 text-zinc-300'
+            }`}>
+                {opponent.isEliminated ? '💀' : opponent.name.charAt(0)}
+            </span>
+            <span className={`hidden text-sm font-bold tracking-wide sm:block ${isActive ? 'text-white' : 'text-zinc-300'}`}>
+                {opponent.isEliminated ? '💀 ' : ''}{opponent.name} {isActive && !opponent.isEliminated && '🔥'}
             </span>
             <span className={`text-xs ${isActive ? 'text-blue-200 font-bold' : 'text-zinc-500 font-semibold'}`}>
-                {opponent.cardCount} cards
+                {opponent.isEliminated ? 'out' : `${opponent.cardCount} cards`}
             </span>
-            {isActive && (
-                <span className="text-[10px] font-black uppercase tracking-widest text-blue-300 animate-pulse mt-1">
-                    Their Turn
-                </span>
-            )}
         </div>
     );
 }
 
 // ── Table center ─────────────────────────────────────────────
 
-function TableCenter({ game, isMyTurn, onDraw, optimisticPlayedCard }: {
+function TableCenter({ game, isMyTurn, onDraw, optimisticPlayedCard, discardHistory }: {
     game: ClientGameState;
     isMyTurn: boolean;
     onDraw: () => void;
     optimisticPlayedCard: Card | null;
+    discardHistory: Card[];
 }) {
     const topCard  = optimisticPlayedCard || game.topCard;
     const display  = VALUE_DISPLAY[topCard.value] ?? topCard.value;
-const canDraw  = isMyTurn && game.phase === 'playing';
+    const canDraw  = isMyTurn && game.phase === GamePhase.Playing;
     const dotColor = game.chosenColor && game.chosenColor !== 'wild' ? (COLOR_HEX[game.chosenColor] ?? null) : null;
 
+    // Older discards peeking out beneath the top card
+    const underCards = discardHistory.filter(c => c.id !== topCard.id).slice(-3);
+
     return (
-        <div className="flex items-center justify-center gap-10">
+        <div className="flex items-center justify-center gap-4 sm:gap-10">
             {/* Discard pile */}
             <div id="discard-pile" className="flex flex-col items-center gap-2">
-                {game.drawStack > 0 && (
-                    <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white">
-                        +{game.drawStack} STACKED!
-                    </span>
-                )}
-                <motion.div layoutId={topCard.id} className={`rc-card color-${topCard.color}`}>
-                    <span>{display}</span>
-                    <span>{display}</span>
-                    <span>{display}</span>
-                </motion.div>
+                <AnimatePresence>
+                    {game.drawStack > 0 && (
+                        <motion.span
+                            key={game.drawStack}
+                            className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white"
+                            style={{ boxShadow: `0 0 ${Math.min(6 + game.drawStack * 2, 30)}px rgba(220,38,38,0.8)` }}
+                            initial={{ scale: 0.6, opacity: 0 }}
+                            animate={{ scale: [1.35, 1], opacity: 1 }}
+                            exit={{ scale: 0.6, opacity: 0 }}
+                            transition={{ duration: 0.35 }}
+                        >
+                            +{game.drawStack} STACKED!
+                        </motion.span>
+                    )}
+                </AnimatePresence>
+                <div className="relative">
+                    {underCards.map((card) => {
+                        const j = cardJitter(card.id);
+                        const d = VALUE_DISPLAY[card.value] ?? card.value;
+                        return (
+                            <div
+                                key={card.id}
+                                className={`rc-card color-${card.color}`}
+                                // Inline position: cards.css is unlayered and its
+                                // `position: relative` outranks Tailwind's `absolute`
+                                style={{
+                                    position: 'absolute',
+                                    inset: 0,
+                                    transform: `translate(${j.dx}px, ${j.dy}px) rotate(${j.rot}deg)`,
+                                }}
+                                aria-hidden
+                            >
+                                <span>{d}</span>
+                                <span>{d}</span>
+                                <span>{d}</span>
+                            </div>
+                        );
+                    })}
+                    <motion.div
+                        layoutId={topCard.id}
+                        className={`rc-card color-${topCard.color} relative`}
+                        style={{ rotate: cardJitter(topCard.id).rot / 2 }}
+                    >
+                        <span>{display}</span>
+                        <span>{display}</span>
+                        <span>{display}</span>
+                    </motion.div>
+                </div>
                 {dotColor && (
                     <div
                         className="size-4 rounded-full"
@@ -93,12 +167,20 @@ const canDraw  = isMyTurn && game.phase === 'playing';
                 <span className="text-xs text-zinc-500">Discard</span>
             </div>
 
+            {/* Direction indicator */}
+            <motion.div
+                className="flex flex-col items-center text-zinc-600"
+                animate={{ scaleX: game.direction === Direction.Clockwise ? 1 : -1 }}
+                transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+            >
+                <RotateCw className="size-5 sm:size-6" />
+            </motion.div>
+
             {/* Draw pile */}
-            <div className="flex flex-col items-center gap-2">
+            <div id="draw-pile" className="flex flex-col items-center gap-2">
                 <CardBack
                     onClick={canDraw ? onDraw : undefined}
                     disabled={!canDraw}
-                    style={{ width: 70, height: 100 }}
                 />
                 <span className="text-xs text-zinc-500">{game.drawPileCount} cards</span>
             </div>
@@ -108,7 +190,6 @@ const canDraw  = isMyTurn && game.phase === 'playing';
 
 // ── Player hand ──────────────────────────────────────────────
 
-
 function PlayerHand({ game, isMyTurn, onPlay, optimisticPlayedCard }: {
     game: ClientGameState;
     isMyTurn: boolean;
@@ -116,78 +197,157 @@ function PlayerHand({ game, isMyTurn, onPlay, optimisticPlayedCard }: {
     optimisticPlayedCard: Card | null;
 }) {
     const you = game.you;
-    const handContainerRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [containerW, setContainerW] = useState(0);
+    const [cardW, setCardW] = useState(72);
+    const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+    // Wrappers are transformed (own stacking contexts), so the dragged
+    // card's wrapper must be raised above its siblings explicitly.
+    const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
+
+    // Touch devices confirm plays with a second tap
+    const coarsePointer = useMemo(
+        () => window.matchMedia('(pointer: coarse)').matches,
+        [],
+    );
+
+    // Stagger the deal only on the first render of the hand
+    const isInitialDeal = useRef(true);
+    useEffect(() => { isInitialDeal.current = false; }, []);
+
+    useLayoutEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+        const measure = () => {
+            setContainerW(el.clientWidth);
+            const c = el.querySelector('.rc-card');
+            if (c instanceof HTMLElement && c.offsetWidth > 0) setCardW(c.offsetWidth);
+        };
+        measure();
+        const ro = new ResizeObserver(measure);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+
+    // Tap outside any card lowers the raised one
+    useEffect(() => {
+        if (!coarsePointer) return;
+        const onPointerDown = (e: PointerEvent) => {
+            if (!(e.target instanceof Element) || !e.target.closest('.rc-card')) {
+                setSelectedCardId(null);
+            }
+        };
+        document.addEventListener('pointerdown', onPointerDown);
+        return () => document.removeEventListener('pointerdown', onPointerDown);
+    }, [coarsePointer]);
+
+    const cards = you.hand.filter(c => c.id !== optimisticPlayedCard?.id);
+    const n = cards.length;
+    const mid = (n - 1) / 2;
+    const cardH = cardW * 1.5;
+
+    // Fan geometry: overlap adapts to the container so 25 cards still fit
+    const step = n > 1
+        ? Math.min(cardW * 0.72, Math.max(10, (containerW - cardW - 16) / (n - 1)))
+        : 0;
+    const anglePer = Math.min(7, Math.max(2.5, 44 / Math.max(n, 1)));
+    const arcK = mid > 0 ? 16 / Math.pow(mid, 1.6) : 0;
 
     const isPlayable = (card: Card) =>
-        isMyTurn && game.phase === 'playing' && clientCanPlay(card, game.topCard, game.chosenColor, game.drawStack);
+        isMyTurn && game.phase === GamePhase.Playing && clientCanPlay(card, game.topCard, game.chosenColor, game.drawStack);
 
-    const handleAction = (card: Card) => {
+    const handlePlayCard = (card: Card) => {
+        setSelectedCardId(null);
         onPlay(card);
     };
 
+    // The card whose layoutId is about to reappear on the discard pile
+    // must not run an exit animation, or it ghosts in the hand.
+    const playedId = optimisticPlayedCard?.id ?? game.topCard.id;
+
     return (
-        <div className="flex flex-col items-center gap-3 pb-4 w-full max-w-full">
+        <div className="flex w-full max-w-full flex-col items-center gap-2 pb-2">
             {/* Player badge */}
-            <div className={`flex items-center gap-3 rounded-xl px-6 py-2 transition-all duration-300 mb-2 ${
-                isMyTurn 
-                    ? 'bg-blue-900 border-2 border-blue-400 shadow-[0_0_30px_rgba(59,130,246,0.6)] transform scale-110 z-10' 
+            <div className={`relative flex items-center gap-3 rounded-xl px-4 py-1.5 transition-colors duration-300 sm:px-6 sm:py-2 ${
+                isMyTurn
+                    ? 'bg-blue-900 border-2 border-blue-400'
                     : 'bg-zinc-800 border-2 border-zinc-700 opacity-80'
             }`}>
-                <span className={`text-lg font-black tracking-wider uppercase ${isMyTurn ? 'text-white' : 'text-zinc-300'}`}>
-                    {you.name} (You)
+                {isMyTurn && <TurnRing />}
+                <span className={`text-base font-black uppercase tracking-wider sm:text-lg ${isMyTurn ? 'text-white' : 'text-zinc-300'}`}>
+                    {you.name} <span className="hidden sm:inline">(You)</span>
                 </span>
-                <span className={`text-sm font-bold ${isMyTurn ? 'text-blue-200' : 'text-zinc-400'}`}>
+                <span className={`text-xs font-bold sm:text-sm ${isMyTurn ? 'text-blue-200' : 'text-zinc-400'}`}>
                     {you.hand.length} cards
                 </span>
                 {isMyTurn && (
-                    <span className="ml-2 text-xs font-black uppercase text-blue-300 animate-pulse bg-blue-950 px-2 py-1 rounded">
+                    <span className="ml-1 animate-pulse rounded bg-blue-950 px-2 py-1 text-[10px] font-black uppercase text-blue-300 sm:ml-2 sm:text-xs">
                         🔥 YOUR TURN
                     </span>
                 )}
             </div>
 
-            {/* Card row */}
-            <div 
-                ref={handContainerRef}
-                className="w-full pb-6 pt-4 overflow-x-auto transition-none"
-                style={{ minHeight: 140 }}
+            {/* Fanned card arc */}
+            <div
+                id="player-hand"
+                ref={containerRef}
+                className="relative w-full overflow-visible"
+                style={{ height: cardH + 64 }}
             >
-                <div className="flex flex-row shrink-0 min-w-full w-max justify-center px-4">
-                    {you.hand
-                        .filter(c => c.id !== optimisticPlayedCard?.id)
-                        .map((card, idx) => {
+                <AnimatePresence custom={playedId}>
+                    {cards.map((card, i) => {
                         const playable = isPlayable(card);
+                        const raised = coarsePointer && selectedCardId === card.id;
+                        const x = (i - mid) * step - cardW / 2;
+                        const y = Math.pow(Math.abs(i - mid), 1.6) * arcK + 20;
+                        const rotate = (i - mid) * anglePer;
                         return (
-                            <CardComponent
+                            <motion.div
                                 key={card.id}
-                                card={card}
-                                playable={playable}
-                                onAction={playable ? () => handleAction(card) : undefined}
-                                dealing
-                                dealDelay={idx * 40}
-                                style={{ marginLeft: idx > 0 ? -20 : 0 }}
-                                draggable={true}
-                                onDragStart={() => {
-                                    if (handContainerRef.current) {
-                                        handContainerRef.current.classList.remove('overflow-x-auto');
-                                        handContainerRef.current.classList.add('overflow-visible');
-                                    }
+                                className="absolute left-1/2 top-0"
+                                style={{ zIndex: raised || draggingCardId === card.id ? 40 : i }}
+                                animate={{ x, y: raised ? y - 6 : y, rotate: raised ? 0 : rotate }}
+                                variants={{
+                                    exit: (topId: string) => (
+                                        card.id === topId
+                                            ? { opacity: 0, transition: { duration: 0 } }
+                                            : { opacity: 0, scale: 0.8, y: y + 20, transition: { duration: 0.18 } }
+                                    ),
                                 }}
-                                onDragEnd={() => {
-                                    if (handContainerRef.current) {
-                                        handContainerRef.current.classList.remove('overflow-visible');
-                                        handContainerRef.current.classList.add('overflow-x-auto');
-                                    }
-                                }}
-                                onPlayDrop={playable ? () => onPlay(card) : undefined}
-                            />
+                                exit="exit"
+                                transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                            >
+                                <CardComponent
+                                    card={card}
+                                    playable={playable}
+                                    onAction={playable ? () => handlePlayCard(card) : undefined}
+                                    dealing
+                                    dealDelay={isInitialDeal.current ? i * 40 : 0}
+                                    draggable={true}
+                                    onDragStart={() => setDraggingCardId(card.id)}
+                                    onDragEnd={() => setDraggingCardId(null)}
+                                    onPlayDrop={playable ? () => handlePlayCard(card) : undefined}
+                                    requireConfirm={coarsePointer}
+                                    raised={raised}
+                                    onRaise={() => setSelectedCardId(prev => prev === card.id ? null : card.id)}
+                                />
+                            </motion.div>
                         );
                     })}
-                </div>
+                </AnimatePresence>
             </div>
         </div>
     );
 }
+
+// ── Modal shell (bottom sheet on phones) ─────────────────────
+
+const SHEET_CLASSES = [
+    'bg-zinc-800 border-zinc-700',
+    'max-sm:top-auto max-sm:bottom-0 max-sm:left-0 max-sm:translate-x-0 max-sm:translate-y-0',
+    'max-sm:w-full max-sm:max-w-full max-sm:rounded-b-none max-sm:rounded-t-2xl',
+    'max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom))]',
+].join(' ');
 
 // ── Color chooser modal ──────────────────────────────────────
 
@@ -198,7 +358,7 @@ function ColorChooserModal({ title, subtitle, onChoose }: {
 }) {
     return (
         <Dialog open>
-            <DialogContent showCloseButton={false} className="bg-zinc-800 border-zinc-700">
+            <DialogContent showCloseButton={false} className={SHEET_CLASSES}>
                 <DialogHeader>
                     <DialogTitle className="text-white">{title}</DialogTitle>
                     {subtitle && <DialogDescription className="text-zinc-400">{subtitle}</DialogDescription>}
@@ -208,7 +368,7 @@ function ColorChooserModal({ title, subtitle, onChoose }: {
                         <button
                             key={color}
                             onClick={() => onChoose(color)}
-                            className="rounded-lg px-4 py-3 font-semibold transition-opacity hover:opacity-80"
+                            className="min-h-16 rounded-lg px-4 py-3 text-base font-semibold transition-opacity hover:opacity-80 sm:min-h-0 sm:text-sm"
                             style={{ background: hex, color: color === 'yellow' ? '#333' : 'white' }}
                         >
                             {label}
@@ -228,7 +388,7 @@ function SwapSelectorModal({ opponents, onSelect }: {
 }) {
     return (
         <Dialog open>
-            <DialogContent showCloseButton={false} className="bg-zinc-800 border-zinc-700">
+            <DialogContent showCloseButton={false} className={SHEET_CLASSES}>
                 <DialogHeader>
                     <DialogTitle className="text-white">Choose a player to swap hands with</DialogTitle>
                 </DialogHeader>
@@ -237,7 +397,7 @@ function SwapSelectorModal({ opponents, onSelect }: {
                         <button
                             key={opp.id}
                             onClick={() => onSelect(opp.id)}
-                            className="flex items-center justify-between rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-zinc-200 hover:bg-zinc-700 hover:text-white transition-colors"
+                            className="flex min-h-14 items-center justify-between rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-zinc-200 transition-colors hover:bg-zinc-700 hover:text-white"
                         >
                             <span>{opp.name}</span>
                             <Badge className="bg-blue-600 text-white border-transparent">{opp.cardCount} cards</Badge>
@@ -258,21 +418,41 @@ function GameOverOverlay({ game }: { game: ClientGameState }) {
         : (game.opponents.find(o => o.id === game.winnerId)?.name ?? 'Someone');
 
     return (
-        <Dialog open>
-            <DialogContent showCloseButton={false} className="bg-zinc-800 border-zinc-700">
-                <DialogHeader>
-                    <DialogTitle className="text-center text-xl text-white">
-                        {isWinner ? '🎉 YOU WIN!' : '💀 GAME OVER'}
-                    </DialogTitle>
-                    <DialogDescription className="text-center text-zinc-400">
-                        {winnerName} {isWinner ? 'wins!' : 'wins!'}
-                    </DialogDescription>
-                </DialogHeader>
-                <Button className="w-full bg-blue-600 hover:bg-blue-500 text-white border-transparent" onClick={() => location.reload()}>
+        <motion.div
+            className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-6 bg-black/75 px-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
+        >
+            <motion.span
+                className="text-center text-4xl font-black tracking-tight text-white sm:text-5xl"
+                initial={{ scale: 0.4, y: 40, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 0.15 }}
+            >
+                {isWinner ? '🎉 YOU WIN!' : '💀 GAME OVER'}
+            </motion.span>
+            <motion.span
+                className="text-lg text-zinc-300"
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.45 }}
+            >
+                {winnerName} win{winnerName === 'You' ? '' : 's'}!
+            </motion.span>
+            <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.65 }}
+            >
+                <Button
+                    className="min-h-12 bg-blue-600 px-8 text-white border-transparent hover:bg-blue-500"
+                    onClick={() => location.reload()}
+                >
                     Play Again
                 </Button>
-            </DialogContent>
-        </Dialog>
+            </motion.div>
+        </motion.div>
     );
 }
 
@@ -294,13 +474,27 @@ export default function GameBoard({ socket, state }: Props) {
         setOptimisticPlayedCard(null);
     }, [game.topCard.id, game.you.hand.length]);
 
+    // Client-side memory of recent discards for the pile stack.
+    // Guarded by id so StrictMode double-renders stay idempotent.
+    const discardHistoryRef = useRef<Card[]>([]);
+    {
+        const h = discardHistoryRef.current;
+        if (h[h.length - 1]?.id !== game.topCard.id) {
+            h.push(game.topCard);
+            if (h.length > 5) h.shift();
+        }
+    }
+
     const handlePlay = (card: Card) => {
         socket.emit(C2S.PLAY_CARD, { roomCode: game.roomCode, playerId, cardId: card.id });
         setOptimisticPlayedCard(card);
+        // Voice own plays instantly — the bus copy (isSelf) is suppressed
+        play(card.value === CardValue.WildParry ? 'parry' : 'cardPlay');
     };
 
     const handleDraw = () => {
         socket.emit(C2S.DRAW_CARD, { roomCode: game.roomCode, playerId });
+        play('cardDraw');
     };
 
     const handleChooseColor = (color: CardColor) => {
@@ -317,11 +511,9 @@ export default function GameBoard({ socket, state }: Props) {
 
     return (
         <LayoutGroup>
-            <div
-                className="flex flex-col min-h-svh bg-zinc-900"
-            >
+            <div className="game-root flex min-h-svh flex-col bg-zinc-900 landscape-short:grid landscape-short:grid-cols-[auto_1fr] landscape-short:grid-rows-[1fr_auto]">
                 {/* Opponents */}
-                <div className="flex justify-center gap-6 p-4">
+                <div className="flex flex-wrap justify-center gap-2 p-3 sm:gap-6 sm:p-4 landscape-short:col-start-1 landscape-short:row-start-1 landscape-short:flex-col landscape-short:items-start landscape-short:justify-start">
                     {game.opponents.map((opp) => (
                         <OpponentArea
                             key={opp.id}
@@ -332,44 +524,55 @@ export default function GameBoard({ socket, state }: Props) {
                 </div>
 
                 {/* Table center */}
-                <div className="flex flex-1 items-center justify-center">
-                    <TableCenter game={game} isMyTurn={isMyTurn} onDraw={handleDraw} optimisticPlayedCard={optimisticPlayedCard} />
+                <div className="flex flex-1 items-center justify-center landscape-short:col-start-2 landscape-short:row-start-1">
+                    <TableCenter
+                        game={game}
+                        isMyTurn={isMyTurn}
+                        onDraw={handleDraw}
+                        optimisticPlayedCard={optimisticPlayedCard}
+                        discardHistory={discardHistoryRef.current}
+                    />
                 </div>
 
                 {/* Player hand */}
-                <PlayerHand
-                    game={game}
-                    isMyTurn={isMyTurn}
-                    onPlay={handlePlay}
-                    optimisticPlayedCard={optimisticPlayedCard}
-                />
+                <div className="landscape-short:col-span-2 landscape-short:row-start-2">
+                    <PlayerHand
+                        game={game}
+                        isMyTurn={isMyTurn}
+                        onPlay={handlePlay}
+                        optimisticPlayedCard={optimisticPlayedCard}
+                    />
+                </div>
 
-            {/* Color chooser */}
-            {game.phase === 'choosing_color' && isMyTurn && (
-                <ColorChooserModal title="Choose a Color" onChoose={handleChooseColor} />
-            )}
+                {/* Color chooser */}
+                {game.phase === GamePhase.ChoosingColor && isMyTurn && (
+                    <ColorChooserModal title="Choose a Color" onChoose={handleChooseColor} />
+                )}
 
-            {/* Color roulette */}
-            {game.phase === 'color_roulette' && isMyTurn && (
-                <ColorChooserModal
-                    title="🎰 Color Roulette!"
-                    subtitle="Choose a color — you'll draw cards until you find one!"
-                    onChoose={handleRouletteColor}
-                />
-            )}
+                {/* Color roulette */}
+                {game.phase === GamePhase.ColorRoulette && isMyTurn && (
+                    <ColorChooserModal
+                        title="🎰 Color Roulette!"
+                        subtitle="Choose a color — you'll draw cards until you find one!"
+                        onChoose={handleRouletteColor}
+                    />
+                )}
 
-            {/* Swap selector */}
-            {game.phase === 'choosing_swap_target' && isMyTurn && (
-                <SwapSelectorModal
-                    opponents={game.opponents.filter(o => !o.isEliminated)}
-                    onSelect={handleSwapTarget}
-                />
-            )}
+                {/* Swap selector */}
+                {game.phase === GamePhase.ChoosingSwapTarget && isMyTurn && (
+                    <SwapSelectorModal
+                        opponents={game.opponents.filter(o => !o.isEliminated)}
+                        onSelect={handleSwapTarget}
+                    />
+                )}
 
                 {/* Game over */}
-                {game.phase === 'game_over' && game.winnerId && (
+                {game.phase === GamePhase.GameOver && game.winnerId && (
                     <GameOverOverlay game={game} />
                 )}
+
+                {/* Transient overlay animations */}
+                <EffectsLayer game={game} playerId={playerId} />
             </div>
         </LayoutGroup>
     );
