@@ -1,11 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { toast } from 'sonner';
 import { C2S, S2C } from '@shared/events';
 import { ClientGameState, LobbyState } from '@shared/types';
 import LobbyScreen from './components/LobbyScreen';
 import WaitingRoom from './components/WaitingRoom';
 import GameBoard from './components/GameBoard';
-import ToastManager, { Toast, ToastType } from './components/Toast';
+import { Toaster } from './components/ui/sonner';
+import { useGameEvents } from './hooks/useGameEvents';
+import { useSoundEffects } from './hooks/useSoundEffects';
+import { MuteButton } from './components/MuteButton';
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -49,15 +53,10 @@ export default function App() {
         setAppState(prev => ({ ...prev, ...partial }));
     }, []);
 
-    // ── Toasts ─────────────────────────────────────────────
-
-    const [toasts, setToasts] = useState<Toast[]>([]);
-
-    const addToast = useCallback((message: string, type: ToastType = 'info') => {
-        const id = `${Date.now()}-${Math.random()}`;
-        setToasts(prev => [...prev, { id, message, type }]);
-        setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
-    }, []);
+    // Bridge socket events + snapshot diffs onto the game event bus
+    // (sound and animation layers subscribe to it)
+    useGameEvents(socket, appState.game, appState.playerId);
+    useSoundEffects();
 
     // ── Socket listeners ────────────────────────────────────
 
@@ -77,21 +76,18 @@ export default function App() {
 
         const onEliminated = (data: { playerId: string; playerName: string }) => {
             if (data.playerId === stateRef.current.playerId) {
-                addToast('💀 You have been eliminated! (25+ cards)', 'error');
+                toast.error('💀 You have been eliminated! (25+ cards)');
             } else {
-                addToast(`💀 ${data.playerName} has been eliminated!`, 'warning');
+                toast.warning(`💀 ${data.playerName} has been eliminated!`);
             }
         };
 
-        const onHandsPassed    = ()                                               => addToast('🔄 All hands have been passed!', 'info');
-        const onHandsSwapped   = ()                                               => addToast('🔀 Hands have been swapped!', 'info');
-        const onRouletteReveal = (data: { cards: any[]; playerId: string })       => {
-            const name = data.playerId === stateRef.current.playerId ? 'You' : 'A player';
-            addToast(`🎰 ${name} drew ${data.cards.length} cards from Color Roulette!`, 'warning');
-        };
-        const onDisconnected   = (data: { playerName: string })                   => addToast(`⚡ ${data.playerName} disconnected`, 'warning');
-        const onReconnected    = ()                                               => addToast('✅ Player reconnected', 'success');
-        const onError          = (data: { message: string })                      => addToast(data.message, 'error');
+        const onHandsPassed    = ()                                               => toast.info('🔄 All hands have been passed!');
+        const onHandsSwapped   = ()                                               => toast.info('🔀 Hands have been swapped!');
+        // (Color roulette reveal is rendered by EffectsLayer)
+        const onDisconnected   = (data: { playerName: string })                   => toast.warning(`⚡ ${data.playerName} disconnected`);
+        const onReconnected    = ()                                               => toast.success('✅ Player reconnected');
+        const onError          = (data: { message: string })                      => toast.error(data.message);
 
         socket.on('connect',                  onConnect);
         socket.on(S2C.LOBBY_UPDATE,           onLobbyUpdate);
@@ -100,7 +96,6 @@ export default function App() {
         socket.on(S2C.PLAYER_ELIMINATED,      onEliminated);
         socket.on(S2C.HANDS_PASSED,           onHandsPassed);
         socket.on(S2C.HANDS_SWAPPED,          onHandsSwapped);
-        socket.on(S2C.COLOR_ROULETTE_REVEAL,  onRouletteReveal);
         socket.on(S2C.PLAYER_DISCONNECTED,    onDisconnected);
         socket.on(S2C.PLAYER_RECONNECTED,     onReconnected);
         socket.on(S2C.ERROR,                  onError);
@@ -113,12 +108,11 @@ export default function App() {
             socket.off(S2C.PLAYER_ELIMINATED,     onEliminated);
             socket.off(S2C.HANDS_PASSED,          onHandsPassed);
             socket.off(S2C.HANDS_SWAPPED,         onHandsSwapped);
-            socket.off(S2C.COLOR_ROULETTE_REVEAL, onRouletteReveal);
             socket.off(S2C.PLAYER_DISCONNECTED,   onDisconnected);
             socket.off(S2C.PLAYER_RECONNECTED,    onReconnected);
             socket.off(S2C.ERROR,                 onError);
         };
-    }, [addToast, patchState]);
+    }, [patchState]);
 
     // ── Render ──────────────────────────────────────────────
 
@@ -128,12 +122,18 @@ export default function App() {
                 <LobbyScreen socket={socket} state={appState} patchState={patchState} />
             )}
             {appState.screen === 'waiting' && (
-                <WaitingRoom socket={socket} state={appState} patchState={patchState} addToast={addToast} />
+                <WaitingRoom socket={socket} state={appState} patchState={patchState} addToast={(msg, type) => {
+                    if (type === 'error') toast.error(msg);
+                    else if (type === 'success') toast.success(msg);
+                    else if (type === 'warning') toast.warning(msg);
+                    else toast.info(msg);
+                }} />
             )}
             {appState.screen === 'game' && appState.game && (
                 <GameBoard socket={socket} state={appState} />
             )}
-            <ToastManager toasts={toasts} />
+            <MuteButton />
+            <Toaster />
         </div>
     );
 }
