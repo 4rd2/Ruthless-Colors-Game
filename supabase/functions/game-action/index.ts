@@ -432,7 +432,8 @@ Deno.serve(async (req) => {
             }
 
             case 'choose_color': {
-                if (!roomCode || !playerId || !chosenColor) return new Response(JSON.stringify({ error: 'Missing parameters' }), { status: 400, headers: corsHeaders });
+                const finalColor = chosenColor || color;
+                if (!roomCode || !playerId || !finalColor) return new Response(JSON.stringify({ error: 'Missing parameters' }), { status: 400, headers: corsHeaders });
 
                 const { data: gameRow } = await supabase.from('games').select('*').eq('room_code', roomCode).maybeSingle();
                 if (!gameRow) return new Response(JSON.stringify({ error: 'Game not found' }), { status: 404, headers: corsHeaders });
@@ -467,7 +468,7 @@ Deno.serve(async (req) => {
                     })),
                 };
 
-                const result = chooseColor(state, playerId, chosenColor as CardColor);
+                const result = chooseColor(state, playerId, finalColor as CardColor);
                 if (!result.success) {
                     return new Response(JSON.stringify({ error: result.error }), { status: 400, headers: corsHeaders });
                 }
