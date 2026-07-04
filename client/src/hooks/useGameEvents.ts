@@ -4,7 +4,7 @@
 // ============================================================
 
 import { useEffect, useRef } from 'react';
-import { Socket } from 'socket.io-client';
+import type { Socket } from '../lib/supabase';
 import { S2C } from '@shared/events';
 import { Card, ClientGameState, GamePhase } from '@shared/types';
 import { gameEvents } from '../lib/gameEvents';

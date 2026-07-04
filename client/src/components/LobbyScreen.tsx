@@ -3,7 +3,7 @@
 // ============================================================
 
 import { useState, useEffect, useRef } from 'react';
-import { Socket } from 'socket.io-client';
+import type { Socket } from '../lib/supabase';
 import { C2S } from '@shared/events';
 import { AppState } from '../App';
 import { Button } from '@/components/ui/button';

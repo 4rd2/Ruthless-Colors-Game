@@ -5,7 +5,7 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { RotateCw } from 'lucide-react';
-import { Socket } from 'socket.io-client';
+import type { Socket } from '../lib/supabase';
 import { C2S } from '@shared/events';
 import { Card, CardColor, CardValue, ClientGameState, Direction, GamePhase, OpponentView } from '@shared/types';
 import { AppState } from '../App';

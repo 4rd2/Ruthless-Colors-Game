@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
 import { toast } from 'sonner';
 import { C2S, S2C } from '@shared/events';
 import { ClientGameState, LobbyState } from '@shared/types';
@@ -10,8 +9,12 @@ import { Toaster } from './components/ui/sonner';
 import { useGameEvents } from './hooks/useGameEvents';
 import { useSoundEffects } from './hooks/useSoundEffects';
 import { MuteButton } from './components/MuteButton';
+import { socket } from './lib/supabase';
 
 // ── Types ───────────────────────────────────────────────────
+
+// ── Socket type exported from adapter ────────────────────────
+import type { Socket } from './lib/supabase';
 
 export type Screen = 'lobby' | 'waiting' | 'game';
 
@@ -23,15 +26,6 @@ export interface AppState {
     lobby: LobbyState | null;
     game: ClientGameState | null;
 }
-
-// ── Socket (module-level singleton) ────────────────────────
-
-const socket: Socket = io({
-    autoConnect: true,
-    reconnection: true,
-    reconnectionAttempts: 10,
-    reconnectionDelay: 1000,
-});
 
 // ── App ─────────────────────────────────────────────────────
 
@@ -48,6 +42,19 @@ export default function App() {
     // Ref so socket callbacks always see the latest state
     const stateRef = useRef(appState);
     useEffect(() => { stateRef.current = appState; });
+
+    // Synchronize room and player details with Supabase Realtime socket adapter
+    useEffect(() => {
+        if (appState.playerId) {
+            socket.playerId = appState.playerId;
+        }
+    }, [appState.playerId]);
+
+    useEffect(() => {
+        if (appState.roomCode) {
+            socket.connectToRoom(appState.roomCode);
+        }
+    }, [appState.roomCode]);
 
     const patchState = useCallback((partial: Partial<AppState>) => {
         setAppState(prev => ({ ...prev, ...partial }));
