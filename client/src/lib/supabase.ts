@@ -107,11 +107,12 @@ class SupabaseSocketAdapter {
         const action = event.replace('c2s:', '');
         
         try {
-            // Include roomCode and playerId from context if not present
-            const payload = {
-                action,
-                ...data
-            };
+            let payload: any = { action };
+            if (typeof data === 'string') {
+                payload.roomCode = data;
+            } else if (data && typeof data === 'object') {
+                payload = { ...payload, ...data };
+            }
             
             const res = await invokeGameAction(payload);
             if (callback) callback(res);
