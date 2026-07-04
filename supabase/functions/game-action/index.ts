@@ -21,6 +21,14 @@ const corsHeaders = {
     'Content-Type': 'application/json',
 };
 
+function sortPlayers(players: any[]): any[] {
+    return [...players].sort((a, b) => {
+        if (a.is_host && !b.is_host) return -1;
+        if (!a.is_host && b.is_host) return 1;
+        return a.id.localeCompare(b.id);
+    });
+}
+
 Deno.serve(async (req) => {
     // Handle CORS Preflight
     if (req.method === 'OPTIONS') {
@@ -93,6 +101,7 @@ Deno.serve(async (req) => {
                 .select('id, name, is_host')
                 .eq('room_code', code);
             if (players) {
+                const sorted = sortPlayers(players);
                 await fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
                     method: 'POST',
                     headers: {
@@ -108,7 +117,7 @@ Deno.serve(async (req) => {
                                 private: false,
                                 payload: {
                                     roomCode: code,
-                                    players: players.map((p) => ({ id: p.id, name: p.name, isHost: p.is_host })),
+                                    players: sorted.map((p) => ({ id: p.id, name: p.name, isHost: p.is_host })),
                                     maxPlayers: 4,
                                 },
                             },
@@ -122,6 +131,12 @@ Deno.serve(async (req) => {
         switch (action) {
             case 'create_room': {
                 if (!playerName) return new Response(JSON.stringify({ error: 'Player name required' }), { status: 400, headers: corsHeaders });
+
+                // Lazy cleanup: Delete rooms older than 12 hours (cascade deletes players/games/hands)
+                const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+                supabase.from('rooms').delete().lt('created_at', twelveHoursAgo).then(({ error }) => {
+                    if (error) console.error('Error cleaning up old rooms:', error);
+                });
 
                 // 1. Generate room code
                 let code = '';
@@ -218,7 +233,7 @@ Deno.serve(async (req) => {
                 if (room.host_id !== playerId) return new Response(JSON.stringify({ error: 'Only the host can start the game' }), { status: 403, headers: corsHeaders });
 
                 const { data: dbPlayers } = await supabase.from('players').select('*').eq('room_code', roomCode);
-                const playersList = dbPlayers || [];
+                const playersList = sortPlayers(dbPlayers || []);
                 if (playersList.length < 2) return new Response(JSON.stringify({ error: 'Need at least 2 players' }), { status: 400, headers: corsHeaders });
 
                 // Create state
@@ -263,7 +278,7 @@ Deno.serve(async (req) => {
                 const { data: dbPlayers } = await supabase.from('players').select('*').eq('room_code', roomCode);
                 const { data: handsRows } = await supabase.from('player_hands').select('*').eq('room_code', roomCode);
 
-                const playersList = dbPlayers || [];
+                const playersList = sortPlayers(dbPlayers || []);
                 const handsMap = (handsRows || []).reduce((acc: any, row: any) => {
                     acc[row.player_id] = row.cards;
                     return acc;
@@ -356,7 +371,7 @@ Deno.serve(async (req) => {
                 const { data: dbPlayers } = await supabase.from('players').select('*').eq('room_code', roomCode);
                 const { data: handsRows } = await supabase.from('player_hands').select('*').eq('room_code', roomCode);
 
-                const playersList = dbPlayers || [];
+                const playersList = sortPlayers(dbPlayers || []);
                 const handsMap = (handsRows || []).reduce((acc: any, row: any) => {
                     acc[row.player_id] = row.cards;
                     return acc;
@@ -441,7 +456,7 @@ Deno.serve(async (req) => {
                 const { data: dbPlayers } = await supabase.from('players').select('*').eq('room_code', roomCode);
                 const { data: handsRows } = await supabase.from('player_hands').select('*').eq('room_code', roomCode);
 
-                const playersList = dbPlayers || [];
+                const playersList = sortPlayers(dbPlayers || []);
                 const handsMap = (handsRows || []).reduce((acc: any, row: any) => {
                     acc[row.player_id] = row.cards;
                     return acc;
@@ -492,7 +507,7 @@ Deno.serve(async (req) => {
                 const { data: dbPlayers } = await supabase.from('players').select('*').eq('room_code', roomCode);
                 const { data: handsRows } = await supabase.from('player_hands').select('*').eq('room_code', roomCode);
 
-                const playersList = dbPlayers || [];
+                const playersList = sortPlayers(dbPlayers || []);
                 const handsMap = (handsRows || []).reduce((acc: any, row: any) => {
                     acc[row.player_id] = row.cards;
                     return acc;
@@ -572,7 +587,7 @@ Deno.serve(async (req) => {
                 const { data: dbPlayers } = await supabase.from('players').select('*').eq('room_code', roomCode);
                 const { data: handsRows } = await supabase.from('player_hands').select('*').eq('room_code', roomCode);
 
-                const playersList = dbPlayers || [];
+                const playersList = sortPlayers(dbPlayers || []);
                 const handsMap = (handsRows || []).reduce((acc: any, row: any) => {
                     acc[row.player_id] = row.cards;
                     return acc;
@@ -672,7 +687,7 @@ Deno.serve(async (req) => {
                 await broadcastToRoom('s2c:player_reconnected', { playerId: targetPlayer.id });
 
                 const { data: dbPlayers } = await supabase.from('players').select('*').eq('room_code', roomCode);
-                const playersList = dbPlayers || [];
+                const playersList = sortPlayers(dbPlayers || []);
 
                 const lobbyState = {
                     roomCode,
@@ -747,7 +762,7 @@ Deno.serve(async (req) => {
                 const { data: dbPlayers } = await supabase.from('players').select('*').eq('room_code', roomCode);
                 const { data: handsRows } = await supabase.from('player_hands').select('*').eq('room_code', roomCode);
 
-                const playersList = dbPlayers || [];
+                const playersList = sortPlayers(dbPlayers || []);
                 const handsMap = (handsRows || []).reduce((acc: any, row: any) => {
                     acc[row.player_id] = row.cards;
                     return acc;

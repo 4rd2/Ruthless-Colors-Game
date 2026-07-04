@@ -25,6 +25,7 @@ import {
     getPlayableCards,
     getNextPlayerIndex,
     resolveCardEffect as rulesResolveCardEffect,
+    performColorRoulette,
 } from './rules.ts';
 
 function isActionCard(value: CardValue): boolean {
