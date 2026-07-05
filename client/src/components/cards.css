@@ -20,91 +20,78 @@
 /* ── Base card ─────────────────────────────────────────────── */
 
 .rc-card {
+    /* Suit color as an RGB triplet — drives border, glyph glow, aura */
+    --glow: 244, 244, 245;
     position: relative;
     width: var(--card-w);
     height: calc(var(--card-w) * 1.5);
     font-size: calc(var(--card-w) / 72 * 1rem);
     border-radius: 12px;
-    border: 2.5px solid rgba(255, 255, 255, 0.55);
+    border: 2.5px solid rgba(var(--glow), 0.85);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
     user-select: none;
     cursor: default;
+    /* Near-black face with a faint suit-colored aura */
+    background:
+        radial-gradient(ellipse 120% 80% at 50% 28%, rgba(var(--glow), 0.14), transparent 70%),
+        #0b0b0f;
     box-shadow:
-        0 4px 6px rgba(0, 0, 0, 0.4),
-        0 8px 20px rgba(0, 0, 0, 0.35),
-        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        0 0 10px rgba(var(--glow), 0.28),
+        0 6px 14px rgba(0, 0, 0, 0.55),
+        inset 0 0 14px rgba(var(--glow), 0.10);
     transition: box-shadow 0.18s ease, opacity 0.15s ease;
     overflow: hidden;
 }
 
-/* ── Color fills ────────────────────────────────────────────
-   Three layers per color (multiple backgrounds, zero DOM cost):
-   1. bottom-edge vignette   2. diagonal sheen texture
-   3. rich 4-stop radial base
-   --glow feeds the per-color playable glow below. */
+/* ── Suit colors ────────────────────────────────────────────
+   Neon arcade: the face stays near-black everywhere; suit
+   identity comes from the glowing border, aura, and glyphs.
+   --glow (RGB triplet) drives all of it. */
 
 .color-red {
-    --glow: 248, 113, 113;
-    background:
-        radial-gradient(ellipse at 50% 118%, rgba(0, 0, 0, 0.38), transparent 55%),
-        repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.045) 0 2px, transparent 2px 7px),
-        radial-gradient(ellipse 130% 95% at 38% 28%, #fecaca 0%, #f87171 22%, #dc2626 58%, #7f1d1d 100%);
+    --glow: 239, 68, 68;
 }
 
 .color-blue {
-    --glow: 96, 165, 250;
-    background:
-        radial-gradient(ellipse at 50% 118%, rgba(0, 0, 0, 0.38), transparent 55%),
-        repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.045) 0 2px, transparent 2px 7px),
-        radial-gradient(ellipse 130% 95% at 38% 28%, #dbeafe 0%, #60a5fa 22%, #2563eb 58%, #172554 100%);
+    --glow: 59, 130, 246;
 }
 
 .color-green {
-    --glow: 74, 222, 128;
-    background:
-        radial-gradient(ellipse at 50% 118%, rgba(0, 0, 0, 0.38), transparent 55%),
-        repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.045) 0 2px, transparent 2px 7px),
-        radial-gradient(ellipse 130% 95% at 38% 28%, #bbf7d0 0%, #4ade80 22%, #16a34a 58%, #052e16 100%);
+    --glow: 34, 197, 94;
 }
 
 .color-yellow {
-    --glow: 253, 224, 71;
-    background:
-        radial-gradient(ellipse at 50% 118%, rgba(0, 0, 0, 0.30), transparent 55%),
-        repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.055) 0 2px, transparent 2px 7px),
-        radial-gradient(ellipse 130% 95% at 38% 28%, #fef9c3 0%, #fde047 22%, #f59e0b 58%, #78350f 100%);
+    --glow: 250, 204, 21;
 }
 
-/* Wild: conic wheel with soft blend zones + radial highlight/vignette */
+/* Wild: white neon frame over a faint four-color conic wash */
 .color-wild {
     --glow: 255, 255, 255;
     background:
-        radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.20), transparent 45%, rgba(0, 0, 0, 0.30) 95%),
+        radial-gradient(ellipse 120% 80% at 50% 28%, rgba(255, 255, 255, 0.10), transparent 70%),
         conic-gradient(from -8deg at 50% 50%,
-            #dc2626 0deg 78deg,
-            #2563eb 96deg 168deg,
-            #16a34a 186deg 258deg,
-            #f59e0b 276deg 348deg,
-            #dc2626 360deg);
+            rgba(220, 38, 38, 0.30) 0deg 90deg,
+            rgba(37, 99, 235, 0.30) 90deg 180deg,
+            rgba(22, 163, 74, 0.30) 180deg 270deg,
+            rgba(245, 158, 11, 0.30) 270deg 360deg),
+        #0b0b0f;
 }
 
-/* ── Inner oval (embossed double ring) ──────────────────────── */
+/* ── Inner frame + scanline texture ─────────────────────────── */
 
 .rc-card::before {
     content: '';
     position: absolute;
-    inset: 9px 7px;
-    border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.5);
-    background: rgba(0, 0, 0, 0.10);
-    box-shadow:
-        inset 0 3px 8px rgba(0, 0, 0, 0.35),
-        inset 0 -2px 4px rgba(255, 255, 255, 0.12),
-        0 0 0 3px rgba(255, 255, 255, 0.10);
-    transform: rotate(-28deg);
+    inset: 4px;
+    border-radius: 8px;
+    border: 1px solid rgba(var(--glow), 0.35);
+    background:
+        repeating-linear-gradient(0deg,
+            rgba(255, 255, 255, 0.035) 0 1px,
+            transparent 1px 4px);
     pointer-events: none;
     z-index: 0;
 }
@@ -117,10 +104,10 @@
     left: 7px;
     font-size: 0.62em;
     font-weight: 900;
-    color: white;
+    color: rgb(var(--glow));
     line-height: 1;
     letter-spacing: -0.5px;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    text-shadow: 0 0 6px rgba(var(--glow), 0.8);
     z-index: 1;
 }
 
@@ -130,48 +117,42 @@
     right: 7px;
     font-size: 0.62em;
     font-weight: 900;
-    color: white;
+    color: rgb(var(--glow));
     line-height: 1;
     letter-spacing: -0.5px;
     transform: rotate(180deg);
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    text-shadow: 0 0 6px rgba(var(--glow), 0.8);
     z-index: 1;
 }
 
-/* ── Center value ───────────────────────────────────────────── */
+/* ── Center value (white-hot core, suit-colored halo) ───────── */
 
 .rc-card>span:nth-child(2) {
     position: relative;
     z-index: 1;
     font-size: 1.75em;
     font-weight: 900;
-    color: white;
+    color: #fff;
     line-height: 1;
     letter-spacing: -1px;
     text-shadow:
-        0 2px 0 rgba(0, 0, 0, 0.3),
-        0 3px 8px rgba(0, 0, 0, 0.4);
-    -webkit-text-stroke: 0.5px rgba(0, 0, 0, 0.2);
+        0 0 4px rgba(var(--glow), 0.95),
+        0 0 12px rgba(var(--glow), 0.75),
+        0 0 26px rgba(var(--glow), 0.45);
 }
 
-/* Yellow: dark text for contrast */
-.color-yellow>span {
-    color: #1c1917;
-    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.2);
-    -webkit-text-stroke: 0;
-}
-
-/* ── Shine overlay ──────────────────────────────────────────── */
+/* ── Edge vignette ──────────────────────────────────────────── */
 
 .rc-card::after {
     content: '';
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: linear-gradient(135deg,
-            rgba(255, 255, 255, 0.18) 0%,
-            rgba(255, 255, 255, 0.06) 40%,
-            transparent 60%);
+    background: linear-gradient(180deg,
+            rgba(255, 255, 255, 0.05) 0%,
+            transparent 25%,
+            transparent 70%,
+            rgba(0, 0, 0, 0.30) 100%);
     pointer-events: none;
     z-index: 2;
 }
