@@ -40,42 +40,70 @@
     overflow: hidden;
 }
 
-/* ── Color fills (radial gradient for depth) ───────────────── */
+/* ── Color fills ────────────────────────────────────────────
+   Three layers per color (multiple backgrounds, zero DOM cost):
+   1. bottom-edge vignette   2. diagonal sheen texture
+   3. rich 4-stop radial base
+   --glow feeds the per-color playable glow below. */
 
 .color-red {
-    background: radial-gradient(ellipse at 40% 35%, #f87171, #dc2626 55%, #991b1b);
+    --glow: 248, 113, 113;
+    background:
+        radial-gradient(ellipse at 50% 118%, rgba(0, 0, 0, 0.38), transparent 55%),
+        repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.045) 0 2px, transparent 2px 7px),
+        radial-gradient(ellipse 130% 95% at 38% 28%, #fecaca 0%, #f87171 22%, #dc2626 58%, #7f1d1d 100%);
 }
 
 .color-blue {
-    background: radial-gradient(ellipse at 40% 35%, #60a5fa, #2563eb 55%, #1e3a8a);
+    --glow: 96, 165, 250;
+    background:
+        radial-gradient(ellipse at 50% 118%, rgba(0, 0, 0, 0.38), transparent 55%),
+        repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.045) 0 2px, transparent 2px 7px),
+        radial-gradient(ellipse 130% 95% at 38% 28%, #dbeafe 0%, #60a5fa 22%, #2563eb 58%, #172554 100%);
 }
 
 .color-green {
-    background: radial-gradient(ellipse at 40% 35%, #4ade80, #16a34a 55%, #14532d);
+    --glow: 74, 222, 128;
+    background:
+        radial-gradient(ellipse at 50% 118%, rgba(0, 0, 0, 0.38), transparent 55%),
+        repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.045) 0 2px, transparent 2px 7px),
+        radial-gradient(ellipse 130% 95% at 38% 28%, #bbf7d0 0%, #4ade80 22%, #16a34a 58%, #052e16 100%);
 }
 
 .color-yellow {
-    background: radial-gradient(ellipse at 40% 35%, #fde68a, #f59e0b 55%, #b45309);
-}
-
-.color-wild {
+    --glow: 253, 224, 71;
     background:
-        conic-gradient(from 0deg at 50% 50%,
-            #dc2626 0deg 90deg,
-            #2563eb 90deg 180deg,
-            #16a34a 180deg 270deg,
-            #f59e0b 270deg 360deg);
+        radial-gradient(ellipse at 50% 118%, rgba(0, 0, 0, 0.30), transparent 55%),
+        repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.055) 0 2px, transparent 2px 7px),
+        radial-gradient(ellipse 130% 95% at 38% 28%, #fef9c3 0%, #fde047 22%, #f59e0b 58%, #78350f 100%);
 }
 
-/* ── Inner oval ─────────────────────────────────────────────── */
+/* Wild: conic wheel with soft blend zones + radial highlight/vignette */
+.color-wild {
+    --glow: 255, 255, 255;
+    background:
+        radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.20), transparent 45%, rgba(0, 0, 0, 0.30) 95%),
+        conic-gradient(from -8deg at 50% 50%,
+            #dc2626 0deg 78deg,
+            #2563eb 96deg 168deg,
+            #16a34a 186deg 258deg,
+            #f59e0b 276deg 348deg,
+            #dc2626 360deg);
+}
+
+/* ── Inner oval (embossed double ring) ──────────────────────── */
 
 .rc-card::before {
     content: '';
     position: absolute;
     inset: 9px 7px;
     border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.4);
-    background: rgba(0, 0, 0, 0.12);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    background: rgba(0, 0, 0, 0.10);
+    box-shadow:
+        inset 0 3px 8px rgba(0, 0, 0, 0.35),
+        inset 0 -2px 4px rgba(255, 255, 255, 0.12),
+        0 0 0 3px rgba(255, 255, 255, 0.10);
     transform: rotate(-28deg);
     pointer-events: none;
     z-index: 0;
@@ -154,14 +182,22 @@
     cursor: pointer;
     border-color: rgba(255, 255, 255, 0.85);
     box-shadow:
+        0 0 10px rgba(var(--glow, 255, 255, 255), 0.35),
         0 6px 16px rgba(0, 0, 0, 0.45),
         inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .rc-card.playable:hover {
     box-shadow:
+        0 0 16px rgba(var(--glow, 255, 255, 255), 0.55),
         0 14px 28px rgba(0, 0, 0, 0.5),
         inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* Parry / roulette center glyphs get a soft glow */
+.rc-card[data-value="wild_parry"]>span:nth-child(2),
+.rc-card[data-value="wild_color_roulette"]>span:nth-child(2) {
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.6));
 }
 
 .rc-card.not-playable {
@@ -176,7 +212,7 @@
 /* ── Card back ──────────────────────────────────────────────── */
 
 .rc-card.card-back {
-    background: #1e3a5f;
+    background: radial-gradient(ellipse at 50% 32%, #2d5385, #1e3a5f 62%, #122238 100%);
     border-color: rgba(255, 255, 255, 0.2);
     box-shadow:
         0 4px 6px rgba(0, 0, 0, 0.5),
@@ -184,34 +220,45 @@
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-/* Diamond pattern for card back */
+/* Diamond lattice + layered inner frame */
 .rc-card.card-back::before {
     background:
         repeating-linear-gradient(45deg,
-            rgba(255, 255, 255, 0.04) 0px,
-            rgba(255, 255, 255, 0.04) 2px,
+            rgba(255, 255, 255, 0.05) 0px,
+            rgba(255, 255, 255, 0.05) 2px,
             transparent 2px,
-            transparent 8px),
+            transparent 6px),
         repeating-linear-gradient(-45deg,
-            rgba(255, 255, 255, 0.04) 0px,
-            rgba(255, 255, 255, 0.04) 2px,
+            rgba(255, 255, 255, 0.05) 0px,
+            rgba(255, 255, 255, 0.05) 2px,
             transparent 2px,
-            transparent 8px);
+            transparent 6px);
     border: 2px solid rgba(255, 255, 255, 0.15);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.14),
+        0 0 0 2px rgba(255, 255, 255, 0.07);
     background-color: transparent;
     transform: none;
     border-radius: 8px;
     inset: 6px;
 }
 
+/* Center emblem ring replaces the generic gloss on backs */
+.rc-card.card-back::after {
+    background:
+        radial-gradient(circle at 50% 50%, transparent 26%, rgba(255, 255, 255, 0.12) 27%, rgba(255, 255, 255, 0.12) 29%, transparent 30%),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.10), transparent 55%);
+}
+
 .rc-card.card-back>span {
     position: relative;
     z-index: 1;
-    font-size: 0.7em;
+    font-size: 1em;
     font-weight: 900;
-    color: rgba(255, 255, 255, 0.55);
-    letter-spacing: 3px;
+    color: rgba(255, 255, 255, 0.75);
+    letter-spacing: 4px;
     text-transform: uppercase;
+    text-shadow: 0 0 12px rgba(96, 165, 250, 0.4);
 }
 
 /* ── Draw pile ──────────────────────────────────────────────── */
@@ -267,11 +314,11 @@
     will-change: transform;
 }
 
-/* Focused playable card glows */
+/* Focused playable card glows in its own suit color */
 .carousel-slot.is-focused .rc-card.playable {
     border-color: rgba(255, 255, 255, 0.95);
     box-shadow:
-        0 0 18px rgba(96, 165, 250, 0.65),
+        0 0 18px rgba(var(--glow, 96, 165, 250), 0.65),
         0 10px 24px rgba(0, 0, 0, 0.5),
         inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }

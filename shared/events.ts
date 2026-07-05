@@ -15,6 +15,7 @@ export const C2S = {
     RECONNECT: 'c2s:reconnect',
     REJOIN_BY_NAME: 'c2s:rejoin_by_name',
     CHECK_ROOM: 'c2s:check_room',
+    LIST_PUBLIC_ROOMS: 'c2s:list_public_rooms',
 } as const;
 
 // --- Server → Client ---
@@ -34,4 +35,5 @@ export const S2C = {
     ERROR: 's2c:error',
     PLAYER_DISCONNECTED: 's2c:player_disconnected',
     PLAYER_RECONNECTED: 's2c:player_reconnected',
+    PUBLIC_ROOMS_UPDATE: 's2c:public_rooms_update',
 } as const;

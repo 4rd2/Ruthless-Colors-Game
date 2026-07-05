@@ -13,6 +13,7 @@ import {
     resolveColorRoulette,
     sanitizeGameState,
 } from './game.ts';
+import { checkWinCondition } from './rules.ts';
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -50,6 +51,7 @@ Deno.serve(async (req) => {
             chosenColor,
             targetPlayerId,
             color,
+            isPublic,
         } = body;
 
         // --- Helper: broadcast to channel via HTTP Realtime REST ---
@@ -127,6 +129,48 @@ Deno.serve(async (req) => {
             }
         };
 
+        // --- Helper: fetch joinable public rooms ---
+        const getPublicRoomsList = async () => {
+            const { data } = await supabase
+                .from('rooms')
+                .select('code, created_at, players(id, name, is_host)')
+                .eq('is_public', true)
+                .eq('status', 'lobby')
+                .order('created_at', { ascending: false })
+                .limit(20);
+            return (data || [])
+                .map((r: any) => ({
+                    code: r.code,
+                    hostName: r.players?.find((p: any) => p.is_host)?.name ?? 'Host',
+                    playerCount: r.players?.length ?? 0,
+                    maxPlayers: 4,
+                }))
+                .filter((r: any) => r.playerCount > 0 && r.playerCount < 4);
+        };
+
+        // --- Helper: push the public rooms snapshot to everyone on the main screen ---
+        const broadcastPublicRoomsUpdate = async () => {
+            const roomsList = await getPublicRoomsList();
+            await fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
+                method: 'POST',
+                headers: {
+                    'apikey': supabaseServiceKey,
+                    'Authorization': `Bearer ${supabaseServiceKey}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    messages: [
+                        {
+                            topic: 'lobby:public',
+                            event: 's2c:public_rooms_update',
+                            private: false,
+                            payload: { rooms: roomsList },
+                        },
+                    ],
+                }),
+            });
+        };
+
         // --- Router ---
         switch (action) {
             case 'create_room': {
@@ -136,6 +180,8 @@ Deno.serve(async (req) => {
                 const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
                 supabase.from('rooms').delete().lt('created_at', twelveHoursAgo).then(({ error }) => {
                     if (error) console.error('Error cleaning up old rooms:', error);
+                    // Stale public rooms may have vanished — refresh viewers' lists
+                    else broadcastPublicRoomsUpdate().catch((e) => console.error('public rooms rebroadcast failed:', e));
                 });
 
                 // 1. Generate room code
@@ -152,9 +198,12 @@ Deno.serve(async (req) => {
                 }
 
                 // 2. Create room row
+                // is_public only included when true, so private creation
+                // (the default) still works if the column migration hasn't
+                // been applied yet.
                 const { error: roomErr } = await supabase
                     .from('rooms')
-                    .insert({ code, status: 'lobby' });
+                    .insert({ code, status: 'lobby', ...(isPublic ? { is_public: true } : {}) });
                 if (roomErr) throw roomErr;
 
                 // 3. Create player row
@@ -166,6 +215,9 @@ Deno.serve(async (req) => {
 
                 // 4. Set room host
                 await supabase.from('rooms').update({ host_id: playerUUID }).eq('code', code);
+
+                // 5. Public rooms appear on everyone's main screen immediately
+                if (isPublic) await broadcastPublicRoomsUpdate();
 
                 const lobbyState = {
                     roomCode: code,
@@ -206,6 +258,9 @@ Deno.serve(async (req) => {
 
                 // 5. Broadcast lobby update
                 await broadcastLobbyUpdate(formattedCode);
+
+                // Player count changed — keep the public list fresh
+                if (room.is_public) await broadcastPublicRoomsUpdate();
 
                 const lobbyState = {
                     roomCode: formattedCode,
@@ -265,7 +320,14 @@ Deno.serve(async (req) => {
                 await broadcastToRoom('s2c:game_started', { roomCode });
                 await broadcastStateToAll(gameState);
 
+                // Started games leave the public list (status is no longer 'lobby')
+                if (room.is_public) await broadcastPublicRoomsUpdate();
+
                 return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+            }
+
+            case 'list_public_rooms': {
+                return new Response(JSON.stringify({ rooms: await getPublicRoomsList() }), { headers: corsHeaders });
             }
 
             case 'play_card': {

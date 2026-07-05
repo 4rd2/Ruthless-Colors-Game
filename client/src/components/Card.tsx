@@ -156,6 +156,7 @@ export function CardComponent({
                 onTouchEnd={endHold}
                 onTouchCancel={endHold}
                 data-card-id={card.id}
+                data-value={card.value}
             >
                 <span>{display}</span>
                 <span>{display}</span>

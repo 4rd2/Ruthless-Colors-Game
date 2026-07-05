@@ -34,6 +34,9 @@ class SupabaseSocketAdapter {
     private listeners: Map<string, Array<(...args: any[]) => void>> = new Map();
     private isSubscribed = false;
     public playerId: string | null = null;
+    // Separate from `channel`: connectToRoom tears that one down on
+    // create/join, and the main-screen public list must survive it.
+    private lobbyChannel: RealtimeChannel | null = null;
 
     /**
      * Connect to a specific room channel.
@@ -72,6 +75,24 @@ class SupabaseSocketAdapter {
                 callbacks.forEach(cb => cb());
             }
         });
+    }
+
+    /**
+     * Subscribe to the global public-games feed (main screen).
+     * Idempotent — safe under React StrictMode double-mount.
+     */
+    public subscribeToPublicLobby(onUpdate: (payload: { rooms: any[] }) => void) {
+        if (this.lobbyChannel) return;
+        this.lobbyChannel = supabase.channel('lobby:public');
+        this.lobbyChannel.on('broadcast', { event: 's2c:public_rooms_update' }, ({ payload }) => {
+            onUpdate(payload);
+        });
+        this.lobbyChannel.subscribe();
+    }
+
+    public unsubscribeFromPublicLobby() {
+        this.lobbyChannel?.unsubscribe();
+        this.lobbyChannel = null;
     }
 
     /**

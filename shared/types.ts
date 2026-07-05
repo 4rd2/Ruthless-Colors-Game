@@ -115,6 +115,14 @@ export interface ClientGameState {
 
 // --- Lobby ---
 
+/** A joinable public game shown on the main screen */
+export interface PublicRoomInfo {
+    code: string;
+    hostName: string;
+    playerCount: number;
+    maxPlayers: number;
+}
+
 export interface LobbyState {
     roomCode: string;
     players: { id: string; name: string; isHost: boolean }[];

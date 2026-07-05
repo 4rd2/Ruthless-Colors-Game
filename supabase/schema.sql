@@ -12,7 +12,8 @@ CREATE TABLE rooms (
     code TEXT PRIMARY KEY CHECK (length(code) = 4),
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('lobby', 'playing', 'game_over')),
-    host_id UUID
+    host_id UUID,
+    is_public BOOLEAN DEFAULT false NOT NULL
 );
 
 -- 2. Players Table
