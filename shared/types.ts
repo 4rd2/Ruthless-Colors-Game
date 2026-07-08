@@ -102,6 +102,8 @@ export interface ClientGameState {
     };
     opponents: OpponentView[];
     currentPlayerId: string;
+    /** Who plays after the current player (null once the game is over) */
+    nextPlayerId?: string | null;
     direction: Direction;
     topCard: Card;
     drawPileCount: number;

@@ -344,6 +344,8 @@ export function sanitizeGameState(state: GameState, forPlayerId: string): Client
         },
         opponents,
         currentPlayerId: state.players[state.currentPlayerIndex]?.id ?? '',
+        // Who plays after the current player (direction + eliminations aware)
+        nextPlayerId: state.winnerId ? null : state.players[getNextPlayerIndex(state)]?.id ?? null,
         direction: state.direction,
         topCard: state.discardPile[state.discardPile.length - 1],
         drawPileCount: state.drawPile.length,

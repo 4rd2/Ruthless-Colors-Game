@@ -59,9 +59,19 @@ function TurnRing() {
 
 // ── Opponent area ────────────────────────────────────────────
 
-function OpponentArea({ opponent, isActive }: {
+/** Small amber chip marking whoever plays after the current player */
+function NextChip() {
+    return (
+        <span className="absolute -top-2 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-amber-400/60 bg-amber-500/90 px-1.5 py-px text-[9px] font-black uppercase tracking-wider text-amber-950 shadow-[0_0_8px_rgba(245,158,11,0.5)]">
+            Next
+        </span>
+    );
+}
+
+function OpponentArea({ opponent, isActive, isNext }: {
     opponent: OpponentView;
     isActive: boolean;
+    isNext: boolean;
 }) {
     return (
         <div
@@ -71,10 +81,13 @@ function OpponentArea({ opponent, isActive }: {
                     ? 'bg-zinc-900/80 border-2 border-zinc-800 opacity-40'
                     : isActive
                         ? 'bg-blue-900/60 border-2 border-blue-400'
-                        : 'bg-zinc-800/80 border-2 border-zinc-700 opacity-60'
+                        : isNext
+                            ? 'bg-zinc-800/90 border-2 border-amber-500/50 opacity-90'
+                            : 'bg-zinc-800/80 border-2 border-zinc-700 opacity-60'
             }`}
         >
             {isActive && !opponent.isEliminated && <TurnRing />}
+            {isNext && !opponent.isEliminated && <NextChip />}
             <span className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-black uppercase sm:hidden ${
                 isActive ? 'bg-blue-500 text-white' : 'bg-zinc-700 text-zinc-300'
             }`}>
@@ -102,12 +115,20 @@ function TableCenter({ game, isMyTurn, onDraw, optimisticPlayedCard, discardHist
     const topCard  = optimisticPlayedCard || game.topCard;
     const display  = VALUE_DISPLAY[topCard.value] ?? topCard.value;
     const canDraw  = isMyTurn && game.phase === GamePhase.Playing;
-    const dotColor = game.chosenColor && game.chosenColor !== 'wild' ? (COLOR_HEX[game.chosenColor] ?? null) : null;
+
+    // The color that must currently be matched: a chosen color after a
+    // wild, otherwise the top card's own color (null while a wild's
+    // color is still being chosen).
+    const activeColor = game.chosenColor && game.chosenColor !== 'wild'
+        ? game.chosenColor
+        : (topCard.color !== 'wild' ? topCard.color : null);
+    const activeHex = activeColor ? COLOR_HEX[activeColor] : null;
 
     // Older discards peeking out beneath the top card
     const underCards = discardHistory.filter(c => c.id !== topCard.id).slice(-3);
 
     return (
+        <div className="flex flex-col items-center gap-3">
         <div className="flex items-center justify-center gap-4 sm:gap-10">
             {/* Discard pile */}
             <div id="discard-pile" className="flex flex-col items-center gap-2">
@@ -159,12 +180,6 @@ function TableCenter({ game, isMyTurn, onDraw, optimisticPlayedCard, discardHist
                         <span>{display}</span>
                     </motion.div>
                 </div>
-                {dotColor && (
-                    <div
-                        className="size-4 rounded-full"
-                        style={{ background: dotColor, boxShadow: `0 0 10px ${dotColor}` }}
-                    />
-                )}
                 <span className="text-xs text-zinc-500">Discard</span>
             </div>
 
@@ -185,6 +200,47 @@ function TableCenter({ game, isMyTurn, onDraw, optimisticPlayedCard, discardHist
                 />
                 <span className="text-xs text-zinc-500">Draw Pile</span>
             </div>
+        </div>
+
+        {/* Active color banner */}
+        <AnimatePresence mode="wait">
+            {activeHex ? (
+                <motion.div
+                    key={activeColor}
+                    className="flex items-center gap-2 rounded-full border px-4 py-1"
+                    style={{
+                        borderColor: activeHex,
+                        background: 'rgba(9, 9, 11, 0.85)',
+                        boxShadow: `0 0 14px ${activeHex}66, inset 0 0 10px ${activeHex}33`,
+                    }}
+                    initial={{ opacity: 0, scale: 0.7 }}
+                    animate={{ opacity: 1, scale: [1.15, 1] }}
+                    exit={{ opacity: 0, scale: 0.7 }}
+                    transition={{ duration: 0.25 }}
+                >
+                    <span
+                        className="size-3 rounded-full"
+                        style={{ background: activeHex, boxShadow: `0 0 8px ${activeHex}` }}
+                    />
+                    <span
+                        className="text-xs font-black uppercase tracking-widest"
+                        style={{ color: activeHex, textShadow: `0 0 8px ${activeHex}88` }}
+                    >
+                        {activeColor}
+                    </span>
+                </motion.div>
+            ) : (
+                <motion.span
+                    key="choosing"
+                    className="rounded-full border border-zinc-700 bg-zinc-900/85 px-4 py-1 text-xs font-bold uppercase tracking-widest text-zinc-400"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                >
+                    Choosing color…
+                </motion.span>
+            )}
+        </AnimatePresence>
         </div>
     );
 }
@@ -276,6 +332,11 @@ function PlayerHand({ game, isMyTurn, onPlay, optimisticPlayedCard }: {
                 {isMyTurn && (
                     <span className="ml-1 animate-pulse rounded bg-blue-950 px-2 py-1 text-[10px] font-black uppercase text-blue-300 sm:ml-2 sm:text-xs">
                         🔥 YOUR TURN
+                    </span>
+                )}
+                {!isMyTurn && game.nextPlayerId === you.id && (
+                    <span className="ml-1 rounded border border-amber-400/60 bg-amber-500/90 px-2 py-1 text-[10px] font-black uppercase text-amber-950 shadow-[0_0_8px_rgba(245,158,11,0.5)] sm:ml-2">
+                        You're next
                     </span>
                 )}
             </div>
@@ -545,6 +606,7 @@ export default function GameBoard({ socket, state }: Props) {
                             key={opp.id}
                             opponent={opp}
                             isActive={game.currentPlayerId === opp.id}
+                            isNext={game.nextPlayerId === opp.id}
                         />
                     ))}
                 </div>
