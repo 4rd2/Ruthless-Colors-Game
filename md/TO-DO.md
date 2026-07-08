@@ -5,12 +5,12 @@ This document tracks planned features, enhancements, and bug fixes for the Supab
 ---
 
 ## 🐛 Bug Fixes & Mobile Optimizations
-- [ ] **Mobile Drag-and-Drop Bug**
+- [x] **Mobile Drag-and-Drop Bug** *(fixed 2026-07-05)*
   - *Issue:* Dragging animation gets stuck inside the card container on touch screens.
-  - *Fix:* Ensure touch event listeners (touchstart, touchmove, touchend) properly calculate coordinates globally on the viewport instead of bounding containment, allowing fluid dragging and playing of cards.
-- [ ] **Mobile Sound Effects**
+  - *Fix:* The focused card now plays the moment the finger travels past the flick threshold **during** the drag (raw pointer delta, unaffected by container clipping or drag constraints), instead of waiting for release against the clip edge. Constraints loosened and carousel headroom increased.
+- [x] **Mobile Sound Effects** *(fixed 2026-07-05)*
   - *Issue:* Sound effects do not play or fail to initialize on mobile web browsers.
-  - *Fix:* Resolve mobile audio restrictions by triggering HTML5 audio context unlocking on the first user interaction (e.g., clicking "Join" or "Create").
+  - *Fix:* Audio unlock now listens to `touchstart`/`click` as well as `pointerdown`, and performs the full iOS ritual inside the gesture: create AudioContext, `resume()`, and play a silent priming buffer. Listeners stay armed until the context is genuinely running.
 
 ---
 
@@ -43,8 +43,8 @@ This document tracks planned features, enhancements, and bug fixes for the Supab
 ---
 
 ## 🎨 Visuals & Animations
-- [ ] **Better Card Designs**
+- [x] **Better Card Designs** *(done 2026-07-05 — neon arcade theme: black faces, suit-colored neon borders/glyph glows, scanline texture, neon-grid card back)*
   - Enhance CSS/SVG card designs to feel more premium, using richer gradients, border highlights, and tactile patterns.
-- [ ] **Fluid Animations**
+- [x] **Fluid Animations** *(done 2026-07-02 — EffectsLayer flight animations hand↔discard↔seats, half-circle fan/carousel, turn-ring travel, draw/swap/elimination/victory effects, synthesized sound engine)*
   - Add arc-based play animations (cards fanning out and flying from hand to discard pile).
   - Add micro-animations on hover, click, and state transitions (e.g., turn changes, drawing animations).

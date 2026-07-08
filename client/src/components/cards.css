@@ -262,8 +262,9 @@
     overscroll-behavior-x: contain;   /* no page bounce / back-swipe */
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    /* Headroom for the raised, scaled focused card + its shadow */
-    padding-top: 48px;
+    /* Headroom for the raised, scaled focused card, its shadow, and
+       the visible travel of a drag-up-to-play gesture */
+    padding-top: 64px;
     padding-bottom: 10px;
 }
 

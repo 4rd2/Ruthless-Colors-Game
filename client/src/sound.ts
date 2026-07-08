@@ -51,15 +51,42 @@ function ensureContext(): void {
 
 /** Call once from main.tsx. Unlocks audio on the first user gesture. */
 export function initSound(): void {
+    // Mobile browsers (iOS Safari especially) only start audio from code
+    // running synchronously inside a real user gesture. touchstart/click
+    // are included because older iOS versions don't grant activation to
+    // pointerdown, and everything must happen inside this handler:
+    // create the context, resume() it, and prime it with a silent buffer.
+    const UNLOCK_EVENTS = ['pointerdown', 'touchstart', 'keydown', 'click'] as const;
+
+    const removeAll = () => {
+        for (const ev of UNLOCK_EVENTS) window.removeEventListener(ev, unlock);
+    };
+
     const unlock = () => {
         ensureContext();
-        if (ctx && ctx.state !== 'suspended') {
-            window.removeEventListener('pointerdown', unlock);
-            window.removeEventListener('keydown', unlock);
+        if (!ctx) return;
+
+        void ctx.resume();
+
+        // iOS unlock ritual: play a silent buffer inside the gesture
+        try {
+            const src = ctx.createBufferSource();
+            src.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+            src.connect(ctx.destination);
+            src.start(0);
+        } catch { /* already unlocked or unsupported — fine */ }
+
+        // Only stop listening once the context is genuinely running
+        // (resume() is async; re-check on the next gesture otherwise)
+        if (ctx.state === 'running') {
+            removeAll();
+        } else {
+            void ctx.resume().then(() => {
+                if (ctx?.state === 'running') removeAll();
+            }).catch(() => { /* keep listening */ });
         }
     };
-    window.addEventListener('pointerdown', unlock);
-    window.addEventListener('keydown', unlock);
+    for (const ev of UNLOCK_EVENTS) window.addEventListener(ev, unlock);
 
     // iOS suspends the context when the tab is backgrounded
     document.addEventListener('visibilitychange', () => {

@@ -183,7 +183,7 @@ function TableCenter({ game, isMyTurn, onDraw, optimisticPlayedCard, discardHist
                     onClick={canDraw ? onDraw : undefined}
                     disabled={!canDraw}
                 />
-                <span className="text-xs text-zinc-500">{game.drawPileCount} cards</span>
+                <span className="text-xs text-zinc-500">Draw Pile</span>
             </div>
         </div>
     );
@@ -348,7 +348,9 @@ const SHEET_CLASSES = [
     'max-sm:pb-[calc(1.25rem+env(safe-area-inset-bottom))]',
 ].join(' ');
 
-// ── Color chooser modal ──────────────────────────────────────
+// ── Color chooser panel ──────────────────────────────────────
+// Deliberately NOT a modal dialog: no backdrop and no focus trap,
+// so the hand stays visible and scrollable while choosing.
 
 function ColorChooserModal({ title, subtitle, onChoose }: {
     title: string;
@@ -356,13 +358,16 @@ function ColorChooserModal({ title, subtitle, onChoose }: {
     onChoose: (color: CardColor) => void;
 }) {
     return (
-        <Dialog open>
-            <DialogContent showCloseButton={false} className={SHEET_CLASSES}>
-                <DialogHeader>
-                    <DialogTitle className="text-white">{title}</DialogTitle>
-                    {subtitle && <DialogDescription className="text-zinc-400">{subtitle}</DialogDescription>}
-                </DialogHeader>
-                <div className="grid grid-cols-2 gap-2">
+        <div className="pointer-events-none fixed inset-x-0 top-1/2 z-40 flex -translate-y-1/2 justify-center px-4">
+            <motion.div
+                className="pointer-events-auto w-full max-w-sm rounded-2xl border border-zinc-700 bg-zinc-800/95 p-4 shadow-2xl backdrop-blur-sm"
+                initial={{ opacity: 0, scale: 0.9, y: 12 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+            >
+                <h3 className="text-base font-semibold text-white">{title}</h3>
+                {subtitle && <p className="mt-1 text-sm text-zinc-400">{subtitle}</p>}
+                <div className="mt-3 grid grid-cols-2 gap-2">
                     {COLOR_OPTIONS.map(({ color, label, hex }) => (
                         <button
                             key={color}
@@ -374,8 +379,11 @@ function ColorChooserModal({ title, subtitle, onChoose }: {
                         </button>
                     ))}
                 </div>
-            </DialogContent>
-        </Dialog>
+                <p className="mt-3 text-center text-[11px] text-zinc-500">
+                    Your cards stay scrollable below.
+                </p>
+            </motion.div>
+        </div>
     );
 }
 
@@ -496,6 +504,25 @@ export default function GameBoard({ socket, state }: Props) {
         play('cardDraw');
     };
 
+    // ── Auto-draw when there is no legal move ────────────────
+    // A stable key describes the exact "stuck" situation; the effect
+    // schedules one draw per key (the delay lets the player see why).
+    const autoDrawKey =
+        isMyTurn &&
+        game.phase === GamePhase.Playing &&
+        !optimisticPlayedCard &&
+        game.you.hand.length > 0 &&
+        !game.you.hand.some(c => clientCanPlay(c, game.topCard, game.chosenColor, game.drawStack))
+            ? `${game.currentPlayerId}:${game.topCard.id}:${game.you.hand.length}:${game.drawStack}:${game.chosenColor ?? ''}`
+            : null;
+
+    useEffect(() => {
+        if (!autoDrawKey) return;
+        const t = setTimeout(handleDraw, 1200);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autoDrawKey]);
+
     const handleChooseColor = (color: CardColor) => {
         socket.emit(C2S.CHOOSE_COLOR, { roomCode: game.roomCode, playerId, color });
     };
@@ -532,6 +559,21 @@ export default function GameBoard({ socket, state }: Props) {
                         discardHistory={discardHistoryRef.current}
                     />
                 </div>
+
+                {/* Auto-draw notice */}
+                {autoDrawKey && (
+                    <div className="pointer-events-none fixed inset-x-0 top-[30%] z-30 flex justify-center px-4">
+                        <motion.span
+                            className="animate-pulse rounded-full border border-zinc-600 bg-zinc-800/95 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-zinc-200 shadow-lg"
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                        >
+                            {game.drawStack > 0
+                                ? `Can't counter — drawing ${game.drawStack}…`
+                                : 'No playable cards — drawing…'}
+                        </motion.span>
+                    </div>
+                )}
 
                 {/* Player hand */}
                 <div className="landscape-short:col-span-2 landscape-short:row-start-2">

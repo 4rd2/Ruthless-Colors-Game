@@ -59,6 +59,10 @@ export function CardComponent({
     ].filter(Boolean).join(' ');
 
     const hasDragged = useRef(false);
+    // Vertical mode plays mid-gesture the moment the flick threshold is
+    // crossed — waiting for release felt "stuck" against the carousel's
+    // clip edge and drag constraints on touch screens.
+    const playedDuringDrag = useRef(false);
 
     const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -96,9 +100,21 @@ export function CardComponent({
             cardRef.current.style.zIndex = '9999';
         }
         hasDragged.current = true;
+        playedDuringDrag.current = false;
         if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; }
         setTooltipPos(null);
         if (onDragStart) onDragStart();
+    };
+
+    // Fires continuously while dragging: vertical mode plays as soon as
+    // the finger travels far enough up (info.offset is the raw pointer
+    // delta, unaffected by drag constraints or container clipping).
+    const handleDrag = (e: any, info: PanInfo) => {
+        if (dragMode !== 'vertical' || !onPlayDrop || playedDuringDrag.current) return;
+        if (info.offset.y < FLICK_UP_THRESHOLD) {
+            playedDuringDrag.current = true;
+            onPlayDrop();
+        }
     };
 
     const handleDragEnd = (e: any, info: PanInfo) => {
@@ -108,6 +124,7 @@ export function CardComponent({
         setTimeout(() => { hasDragged.current = false; }, 100);
         if (onDragEnd) onDragEnd();
         if (dragMode === 'none' || !onPlayDrop) return;
+        if (playedDuringDrag.current) return; // already played mid-gesture
 
         // Vertical mode: an upward flick counts as a play
         if (dragMode === 'vertical' && info.offset.y < FLICK_UP_THRESHOLD) {
@@ -132,8 +149,9 @@ export function CardComponent({
                 layoutId={card.id}
                 drag={dragMode === 'free' ? true : dragMode === 'vertical' ? 'y' : false}
                 dragSnapToOrigin={true}
-                dragConstraints={dragMode === 'vertical' ? { top: -48, bottom: 0 } : undefined}
-                dragElastic={dragMode === 'vertical' ? 0.15 : undefined}
+                dragConstraints={dragMode === 'vertical' ? { top: -64, bottom: 0 } : undefined}
+                dragElastic={dragMode === 'vertical' ? 0.2 : undefined}
+                onDrag={handleDrag}
                 initial={dealing ? { opacity: 0, y: 30, scale: 0.85, rotate: -4 } : false}
                 animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
                 transition={{
