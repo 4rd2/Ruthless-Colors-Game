@@ -24,7 +24,9 @@ interface Props {
 const SETTLE_MS = 150;
 const SHAKE_MS = 300;
 /** Degrees between adjacent cards on the wheel */
-const ANGLE_PER_CARD = 9;
+const ANGLE_PER_CARD = 14;
+/** Cards beyond this tilt bunch up at the fan's fixed edges */
+const MAX_ANGLE = 60;
 
 export function HandCarousel({ cards, isPlayable, onPlay, isMyTurn }: Props) {
     const reducedMotion = useReducedMotion();
@@ -60,18 +62,31 @@ export function HandCarousel({ cards, isPlayable, onPlay, isMyTurn }: Props) {
     /**
      * Half-circle wheel transforms, driven by scrollLeft.
      *
-     * Cards sit on a circle whose apex is the focused slot: each card is
-     * rotated by its angle on the wheel and dropped by R·(1−cosθ), so the
-     * hand reads as the top of a half circle — distant cards sink below
-     * the container edge and clip away (overflow-y: hidden).
+     * The fan is ANCHORED at the viewport center: every card is placed
+     * at its true wheel position (x = R·sinθ, y = R·(1−cosθ), tilt θ),
+     * where θ comes from its distance to the scroll center. The
+     * translateX cancels the slot strip's linear slide, so swiping
+     * doesn't shove the whole deck sideways — it rotates the wheel and
+     * the next card sweeps up to the apex. Distant cards bunch at the
+     * wheel's edges and sink below the clip line.
      */
     const applyTransforms = () => {
         const track = trackRef.current;
         const step = stepRef.current || measureStep();
         if (!track || !step) return;
         const center = track.scrollLeft / step;
-        // Radius chosen so arc spacing between neighbors ≈ slot spacing
-        const R = step / Math.sin((ANGLE_PER_CARD * Math.PI) / 180);
+        // Visual wheel radius, deliberately DECOUPLED from the scroll
+        // step: the fan is a compact held-hand shape pinned at the
+        // viewport center, and its edges never move. (Deriving R from
+        // the step makes R·sinθ ≈ the linear slide, which is exactly
+        // the whole-deck drift this replaces.)
+        const cardW = step / 0.62; // slots are --card-w * 0.62 wide
+        const R = cardW * 1.8;
+        // Small hands spread to fill the whole fan window so the arc's
+        // ends stay pinned at the clamps while scrolling; big hands use
+        // the base angle and bunch at the edges.
+        const n = cardsRef.current.length;
+        const anglePer = Math.min(30, Math.max(ANGLE_PER_CARD, (2 * MAX_ANGLE) / Math.max(n - 1, 1)));
 
         cardsRef.current.forEach((card, i) => {
             const slot = slotRefs.current.get(card.id);
@@ -87,12 +102,16 @@ export function HandCarousel({ cards, isPlayable, onPlay, isMyTurn }: Props) {
                 xform.style.transform = '';
                 return;
             }
-            const thetaDeg = Math.max(-75, Math.min(75, d * ANGLE_PER_CARD));
+            const thetaDeg = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, d * anglePer));
             const theta = (thetaDeg * Math.PI) / 180;
             const lift = Math.max(0, 1 - ad);
+            // True wheel placement, cancelling the slot strip's linear
+            // slide (d·step): swiping rotates cards through the fixed
+            // fan positions instead of shoving the deck sideways.
+            const x = R * Math.sin(theta) - d * step;
             const y = R * (1 - Math.cos(theta)) - lift * 14;
             const scale = 1 + lift * 0.14;
-            xform.style.transform = `translateY(${y.toFixed(2)}px) rotate(${thetaDeg.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
+            xform.style.transform = `translateX(${x.toFixed(2)}px) translateY(${y.toFixed(2)}px) rotate(${thetaDeg.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
         });
     };
 

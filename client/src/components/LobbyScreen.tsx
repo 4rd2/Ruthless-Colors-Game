@@ -191,6 +191,7 @@ export default function LobbyScreen({ socket, patchState }: Props) {
         });
     };
 
+
     /** Shared by the manual code input, the public list rows, and the invite flow */
     const joinRoomWithCode = (rawCode: string) => {
         const roomCode = rawCode.trim().toUpperCase();
@@ -366,6 +367,9 @@ export default function LobbyScreen({ socket, patchState }: Props) {
                     <Button className="bg-blue-600 hover:bg-blue-500 text-white border-transparent" onClick={handleCreate}>
                         Create Game
                     </Button>
+                    <p className="-mt-1 text-center text-xs text-zinc-500">
+                        You can add 🤖 bots from the lobby after creating.
+                    </p>
 
                     <Divider label="or join a public game" />
 

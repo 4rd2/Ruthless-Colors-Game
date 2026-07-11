@@ -22,6 +22,7 @@ CREATE TABLE players (
     room_code TEXT NOT NULL REFERENCES rooms(code) ON DELETE CASCADE,
     name TEXT NOT NULL,
     is_host BOOLEAN DEFAULT false NOT NULL,
+    is_bot BOOLEAN DEFAULT false NOT NULL,
     connected BOOLEAN DEFAULT true NOT NULL,
     is_eliminated BOOLEAN DEFAULT false NOT NULL,
     last_seen_at TIMESTAMPTZ DEFAULT now() NOT NULL

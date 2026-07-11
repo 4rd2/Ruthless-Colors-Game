@@ -48,6 +48,7 @@ export interface OpponentView {
     name: string;
     cardCount: number;
     isEliminated: boolean;
+    isBot?: boolean;
 }
 
 // --- Player ---
@@ -127,7 +128,7 @@ export interface PublicRoomInfo {
 
 export interface LobbyState {
     roomCode: string;
-    players: { id: string; name: string; isHost: boolean }[];
+    players: { id: string; name: string; isHost: boolean; isBot?: boolean }[];
     maxPlayers: number;
 }
 

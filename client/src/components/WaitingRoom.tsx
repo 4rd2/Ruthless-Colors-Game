@@ -48,6 +48,20 @@ export default function WaitingRoom({ socket, state, addToast }: Props) {
         });
     };
 
+    const addBot = () => {
+        socket.emit(C2S.ADD_BOT, { roomCode, playerId }, (res: any) => {
+            if (res?.error) addToast(res.error, 'error');
+        });
+    };
+
+    const removeBot = (targetPlayerId: string) => {
+        socket.emit(C2S.REMOVE_BOT, { roomCode, playerId, targetPlayerId }, (res: any) => {
+            if (res?.error) addToast(res.error, 'error');
+        });
+    };
+
+    const roomFull = lobby.players.length >= lobby.maxPlayers;
+
     return (
         <div className="flex min-h-screen items-center justify-center bg-zinc-900 px-4 py-8">
             <Card className="w-full max-w-md bg-zinc-800 border-zinc-700 text-zinc-100">
@@ -75,10 +89,22 @@ export default function WaitingRoom({ socket, state, addToast }: Props) {
                                 key={p.id}
                                 className="flex items-center gap-2 rounded-md px-2 py-1.5 bg-zinc-900/50 border border-zinc-700"
                             >
-                                <span className="size-2 rounded-full bg-blue-500" />
-                                <span className="flex-1 text-zinc-200">{p.name}</span>
+                                <span className={`size-2 rounded-full ${p.isBot ? 'bg-emerald-500' : 'bg-blue-500'}`} />
+                                <span className="flex-1 text-zinc-200">{p.isBot ? '🤖 ' : ''}{p.name}</span>
+                                {p.isBot && (
+                                    <Badge className="bg-zinc-700 text-zinc-300 border-transparent">Bot</Badge>
+                                )}
                                 {p.isHost && (
                                     <Badge className="bg-blue-600 text-white border-transparent">Host</Badge>
+                                )}
+                                {p.isBot && isHost && (
+                                    <button
+                                        onClick={() => removeBot(p.id)}
+                                        aria-label={`Remove ${p.name}`}
+                                        className="flex size-6 items-center justify-center rounded text-zinc-500 transition-colors hover:bg-red-900/40 hover:text-red-400"
+                                    >
+                                        ✕
+                                    </button>
                                 )}
                             </li>
                         ))}
@@ -87,6 +113,19 @@ export default function WaitingRoom({ socket, state, addToast }: Props) {
                     <p className="text-sm text-zinc-500">
                         {lobby.players.length} / {lobby.maxPlayers} players
                     </p>
+
+                    {/* Host fills empty seats with bots */}
+                    {isHost && (
+                        <Button
+                            variant="outline"
+                            className="w-full border-emerald-700 text-emerald-400 hover:bg-emerald-900/30 hover:text-emerald-300 disabled:border-zinc-700 disabled:text-zinc-600"
+                            disabled={roomFull}
+                            onClick={addBot}
+                        >
+                            🤖 Add Bot{roomFull ? ' (room full)' : ''}
+                        </Button>
+                    )}
+
                     {isHost ? (
                         <Button
                             className="w-full bg-blue-600 hover:bg-blue-500 text-white border-transparent disabled:bg-zinc-700 disabled:text-zinc-500"

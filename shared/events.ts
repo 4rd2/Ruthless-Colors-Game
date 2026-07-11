@@ -16,6 +16,9 @@ export const C2S = {
     REJOIN_BY_NAME: 'c2s:rejoin_by_name',
     CHECK_ROOM: 'c2s:check_room',
     LIST_PUBLIC_ROOMS: 'c2s:list_public_rooms',
+    CREATE_BOT_GAME: 'c2s:create_bot_game',
+    ADD_BOT: 'c2s:add_bot',
+    REMOVE_BOT: 'c2s:remove_bot',
 } as const;
 
 // --- Server → Client ---

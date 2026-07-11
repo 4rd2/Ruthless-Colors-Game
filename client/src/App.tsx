@@ -9,6 +9,7 @@ import { Toaster } from './components/ui/sonner';
 import { useGameEvents } from './hooks/useGameEvents';
 import { useSoundEffects } from './hooks/useSoundEffects';
 import { MuteButton } from './components/MuteButton';
+import { gameEvents } from './lib/gameEvents';
 import { socket } from './lib/supabase';
 
 // ── Types ───────────────────────────────────────────────────
@@ -64,6 +65,12 @@ export default function App() {
     // (sound and animation layers subscribe to it)
     useGameEvents(socket, appState.game, appState.playerId);
     useSoundEffects();
+
+    // Rejected actions come back via adapter callbacks (no pushed error
+    // event exists) — GameBoard puts them on the bus, we toast them.
+    useEffect(() => {
+        return gameEvents.on('play_rejected', ({ message }) => toast.error(message));
+    }, []);
 
     // ── Socket listeners ────────────────────────────────────
 

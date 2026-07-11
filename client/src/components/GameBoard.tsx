@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { EffectsLayer } from './effects/EffectsLayer';
+import { gameEvents } from '../lib/gameEvents';
 import { play } from '../sound';
 
 // ── Color helpers ────────────────────────────────────────────
@@ -91,10 +92,10 @@ function OpponentArea({ opponent, isActive, isNext }: {
             <span className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-black uppercase sm:hidden ${
                 isActive ? 'bg-blue-500 text-white' : 'bg-zinc-700 text-zinc-300'
             }`}>
-                {opponent.isEliminated ? '💀' : opponent.name.charAt(0)}
+                {opponent.isEliminated ? '💀' : opponent.isBot ? '🤖' : opponent.name.charAt(0)}
             </span>
             <span className={`hidden text-sm font-bold tracking-wide sm:block ${isActive ? 'text-white' : 'text-zinc-300'}`}>
-                {opponent.isEliminated ? '💀 ' : ''}{opponent.name} {isActive && !opponent.isEliminated && '🔥'}
+                {opponent.isEliminated ? '💀 ' : opponent.isBot ? '🤖 ' : ''}{opponent.name} {isActive && !opponent.isEliminated && '🔥'}
             </span>
             <span className={`text-xs ${isActive ? 'text-blue-200 font-bold' : 'text-zinc-500 font-semibold'}`}>
                 {opponent.isEliminated ? 'out' : `${opponent.cardCount} cards`}
@@ -182,15 +183,6 @@ function TableCenter({ game, isMyTurn, onDraw, optimisticPlayedCard, discardHist
                 </div>
                 <span className="text-xs text-zinc-500">Discard</span>
             </div>
-
-            {/* Direction indicator */}
-            <motion.div
-                className="flex flex-col items-center text-zinc-600"
-                animate={{ scaleX: game.direction === Direction.Clockwise ? 1 : -1 }}
-                transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-            >
-                <RotateCw className="size-5 sm:size-6" />
-            </motion.div>
 
             {/* Draw pile */}
             <div id="draw-pile" className="flex flex-col items-center gap-2">
@@ -553,15 +545,29 @@ export default function GameBoard({ socket, state }: Props) {
         }
     }
 
+    // Server rejections arrive via the adapter callback (there is no
+    // pushed error event). Surface them and force a full state re-sync —
+    // a rejection usually means our local state went stale (e.g. a
+    // missed broadcast during a bot turn burst).
+    const handleActionError = (message: string) => {
+        setOptimisticPlayedCard(null);
+        gameEvents.emit('play_rejected', { message });
+        socket.emit(C2S.RECONNECT, { roomCode: game.roomCode, playerId }, () => {});
+    };
+
     const handlePlay = (card: Card) => {
-        socket.emit(C2S.PLAY_CARD, { roomCode: game.roomCode, playerId, cardId: card.id });
+        socket.emit(C2S.PLAY_CARD, { roomCode: game.roomCode, playerId, cardId: card.id }, (res: any) => {
+            if (res?.error) handleActionError(res.error);
+        });
         setOptimisticPlayedCard(card);
         // Voice own plays instantly — the bus copy (isSelf) is suppressed
         play(card.value === CardValue.WildParry ? 'parry' : 'cardPlay');
     };
 
     const handleDraw = () => {
-        socket.emit(C2S.DRAW_CARD, { roomCode: game.roomCode, playerId });
+        socket.emit(C2S.DRAW_CARD, { roomCode: game.roomCode, playerId }, (res: any) => {
+            if (res?.error) handleActionError(res.error);
+        });
         play('cardDraw');
     };
 

@@ -44,6 +44,7 @@ export function initializeNewGame(roomCode: string, players: Array<{ id: string;
         name: p.name,
         hand: [],
         isEliminated: false,
+        isBot: (p as any).isBot ?? false,
     }));
 
     for (const player of gamePlayers) {
@@ -332,6 +333,7 @@ export function sanitizeGameState(state: GameState, forPlayerId: string): Client
             name: p.name,
             cardCount: p.hand.length,
             isEliminated: p.isEliminated,
+            isBot: p.isBot,
         }));
 
     return {

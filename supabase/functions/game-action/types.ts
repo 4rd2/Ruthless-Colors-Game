@@ -45,6 +45,7 @@ export interface OpponentView {
     name: string;
     cardCount: number;
     isEliminated: boolean;
+    isBot?: boolean;
 }
 
 export interface Player {
@@ -52,6 +53,7 @@ export interface Player {
     name: string;
     hand: Card[];
     isEliminated: boolean;
+    isBot?: boolean;
 }
 
 export enum GamePhase {

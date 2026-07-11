@@ -14,6 +14,7 @@ import {
     sanitizeGameState,
 } from './game.ts';
 import { checkWinCondition } from './rules.ts';
+import { chooseBotAction, pickBotNames } from './bot.ts';
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -100,7 +101,7 @@ Deno.serve(async (req) => {
         const broadcastLobbyUpdate = async (code: string) => {
             const { data: players } = await supabase
                 .from('players')
-                .select('id, name, is_host')
+                .select('id, name, is_host, is_bot')
                 .eq('room_code', code);
             if (players) {
                 const sorted = sortPlayers(players);
@@ -119,7 +120,7 @@ Deno.serve(async (req) => {
                                 private: false,
                                 payload: {
                                     roomCode: code,
-                                    players: sorted.map((p) => ({ id: p.id, name: p.name, isHost: p.is_host })),
+                                    players: sorted.map((p) => ({ id: p.id, name: p.name, isHost: p.is_host, isBot: p.is_bot })),
                                     maxPlayers: 4,
                                 },
                             },
@@ -169,6 +170,168 @@ Deno.serve(async (req) => {
                     ],
                 }),
             });
+        };
+
+        // ═══ Bot engine ══════════════════════════════════════
+        // The backend is stateless, so bot turns run here: after any
+        // state-mutating action, runBotTurns keeps applying bot moves
+        // (fresh DB state each iteration) until it's a human's turn.
+
+        const loadGameState = async (code: string) => {
+            const { data: gameRow } = await supabase.from('games').select('*').eq('room_code', code).maybeSingle();
+            if (!gameRow) return null;
+            const { data: dbPlayers } = await supabase.from('players').select('*').eq('room_code', code);
+            const { data: handsRows } = await supabase.from('player_hands').select('*').eq('room_code', code);
+            const playersList = sortPlayers(dbPlayers || []);
+            const handsMap = (handsRows || []).reduce((acc: any, row: any) => {
+                acc[row.player_id] = row.cards;
+                return acc;
+            }, {});
+            const state: any = {
+                roomCode: code,
+                currentPlayerIndex: gameRow.current_player_index,
+                direction: gameRow.direction,
+                chosenColor: gameRow.chosen_color,
+                drawStack: gameRow.draw_stack,
+                drawStackOriginIndex: gameRow.draw_stack_origin_index,
+                winnerId: gameRow.winner_id,
+                phase: gameRow.phase,
+                discardPile: gameRow.discard_pile,
+                drawPile: gameRow.draw_pile,
+                players: playersList.map((p) => ({
+                    id: p.id,
+                    name: p.name,
+                    isEliminated: p.is_eliminated,
+                    isBot: p.is_bot,
+                    hand: handsMap[p.id] || [],
+                })),
+            };
+            return state;
+        };
+
+        const persistState = async (state: any, eliminatedPlayers?: any[]) => {
+            await supabase.from('games').update({
+                current_player_index: state.currentPlayerIndex,
+                direction: state.direction,
+                chosen_color: state.chosenColor,
+                draw_stack: state.drawStack,
+                draw_stack_origin_index: state.drawStackOriginIndex,
+                winner_id: state.winnerId,
+                phase: state.phase,
+                discard_pile: state.discardPile,
+                draw_pile: state.drawPile,
+            }).eq('room_code', state.roomCode);
+            if (eliminatedPlayers) {
+                for (const p of eliminatedPlayers) {
+                    await supabase.from('players').update({ is_eliminated: true }).eq('id', p.id);
+                }
+            }
+            for (const p of state.players) {
+                await supabase.from('player_hands').update({ cards: p.hand }).eq('player_id', p.id);
+            }
+            if (state.phase === 'game_over') {
+                await supabase.from('rooms').update({ status: 'game_over' }).eq('code', state.roomCode);
+            }
+        };
+
+        const broadcastResultEvents = async (
+            state: any,
+            actorId: string,
+            result: any,
+            extra: { playedCard?: any; drawCount?: number; swapTargetId?: string } = {},
+        ) => {
+            if (extra.playedCard) {
+                await broadcastToRoom('s2c:card_played', { playerId: actorId, card: extra.playedCard });
+            }
+            if (extra.drawCount) {
+                await broadcastToRoom('s2c:cards_drawn', { playerId: actorId, count: extra.drawCount });
+            }
+            if (extra.swapTargetId) {
+                await broadcastToRoom('s2c:hands_swapped', { player1: actorId, player2: extra.swapTargetId });
+            }
+            if (result.rouletteCards) {
+                await broadcastToRoom('s2c:color_roulette_reveal', { cards: result.rouletteCards, playerId: actorId });
+            }
+            if (result.handsPassed) {
+                await broadcastToRoom('s2c:hands_passed', {});
+            }
+            if (result.eliminatedPlayers) {
+                for (const p of result.eliminatedPlayers) {
+                    await broadcastToRoom('s2c:player_eliminated', { playerId: p.id, playerName: p.name });
+                }
+            }
+            if (state.phase === 'game_over' && state.winnerId) {
+                const winner = state.players.find((p: any) => p.id === state.winnerId);
+                await broadcastToRoom('s2c:game_over', { winnerId: state.winnerId, winnerName: winner?.name ?? 'Someone' });
+            }
+            await broadcastStateToAll(state);
+        };
+
+        const BOT_PHASES = ['playing', 'choosing_color', 'choosing_swap_target', 'color_roulette'];
+
+        const runBotTurns = async () => {
+            if (!roomCode) return;
+            for (let i = 0; i < 60; i++) {
+                // Fresh state every iteration: another invocation (a human
+                // action or a racing bot loop) may have moved the game on.
+                const state = await loadGameState(roomCode);
+                if (!state) return;
+                if (state.winnerId || !BOT_PHASES.includes(state.phase)) return;
+                const bot = state.players[state.currentPlayerIndex];
+                if (!bot?.isBot || bot.isEliminated) return; // human's turn → done
+
+                // Thinking pause so moves animate naturally; hurry when no
+                // humans are left to watch (finishing out the game).
+                const humansActive = state.players.some((p: any) => !p.isBot && !p.isEliminated);
+                await new Promise((r) => setTimeout(r, humansActive ? 700 : 300));
+
+                const decision = chooseBotAction(state);
+                let result: any;
+                const extra: { playedCard?: any; drawCount?: number; swapTargetId?: string } = {};
+
+                switch (decision.type) {
+                    case 'play_card': {
+                        extra.playedCard = bot.hand.find((c: any) => c.id === decision.cardId);
+                        // Colorless wilds on purpose: the two-step
+                        // choose_color path is the battle-tested one.
+                        result = playCard(state, bot.id, decision.cardId);
+                        break;
+                    }
+                    case 'draw_card': {
+                        extra.drawCount = state.drawStack > 0 ? state.drawStack : 1;
+                        result = drawCard(state, bot.id);
+                        break;
+                    }
+                    case 'choose_color':
+                        result = chooseColor(state, bot.id, decision.color);
+                        break;
+                    case 'choose_swap_target': {
+                        extra.swapTargetId = decision.targetPlayerId;
+                        result = chooseSwapTarget(state, bot.id, decision.targetPlayerId);
+                        break;
+                    }
+                    case 'color_roulette_choice':
+                        result = resolveColorRoulette(state, bot.id, decision.color);
+                        break;
+                }
+
+                if (!result?.success) {
+                    // Lost a race with another invocation, or a logic gap —
+                    // stop quietly; a reconnect re-kicks the loop if needed.
+                    console.error(`[bot] ${bot.name} ${decision.type} failed: ${result?.error}`);
+                    return;
+                }
+
+                await persistState(state, result.eliminatedPlayers);
+                await broadcastResultEvents(state, bot.id, result, extra);
+            }
+            console.error('[bot] iteration cap reached for room', roomCode);
+        };
+
+        const scheduleBotTurns = () => {
+            const p = runBotTurns().catch((e) => console.error('[bot] loop error:', e));
+            // Keep the function alive past the response where supported
+            (globalThis as any).EdgeRuntime?.waitUntil?.(p);
         };
 
         // --- Router ---
@@ -228,6 +391,109 @@ Deno.serve(async (req) => {
                 return new Response(JSON.stringify({ roomCode: code, playerId: playerUUID, lobby: lobbyState }), { headers: corsHeaders });
             }
 
+            case 'create_bot_game': {
+                if (!playerName) return new Response(JSON.stringify({ error: 'Player name required' }), { status: 400, headers: corsHeaders });
+                const bots = Math.max(1, Math.min(3, Number(body.botCount) || 1));
+
+                // 1. Generate room code (same alphabet as create_room)
+                let code = '';
+                const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                let exists = true;
+                while (exists) {
+                    code = '';
+                    for (let i = 0; i < 4; i++) {
+                        code += chars[Math.floor(Math.random() * chars.length)];
+                    }
+                    const { data } = await supabase.from('rooms').select('code').eq('code', code).maybeSingle();
+                    if (!data) exists = false;
+                }
+
+                // 2. Room is always private — bot games never appear publicly
+                const { error: roomErr } = await supabase.from('rooms').insert({ code, status: 'lobby' });
+                if (roomErr) throw roomErr;
+
+                // 3. Human host + bots
+                const playerUUID = crypto.randomUUID();
+                const { error: playerErr } = await supabase
+                    .from('players')
+                    .insert({ id: playerUUID, room_code: code, name: playerName, is_host: true });
+                if (playerErr) throw playerErr;
+                await supabase.from('rooms').update({ host_id: playerUUID }).eq('code', code);
+
+                const botNames = pickBotNames(bots, [playerName]);
+                const botRows = botNames.map((name) => ({
+                    id: crypto.randomUUID(),
+                    room_code: code,
+                    name,
+                    is_host: false,
+                    is_bot: true,
+                    connected: true,
+                }));
+                const { error: botErr } = await supabase.from('players').insert(botRows);
+                if (botErr) throw botErr;
+
+                const lobbyState = {
+                    roomCode: code,
+                    players: [
+                        { id: playerUUID, name: playerName, isHost: true, isBot: false },
+                        ...botRows.map((b) => ({ id: b.id, name: b.name, isHost: false, isBot: true })),
+                    ],
+                    maxPlayers: 4,
+                };
+
+                return new Response(JSON.stringify({ roomCode: code, playerId: playerUUID, lobby: lobbyState }), { headers: corsHeaders });
+            }
+
+            case 'add_bot': {
+                if (!roomCode || !playerId) return new Response(JSON.stringify({ error: 'Missing parameters' }), { status: 400, headers: corsHeaders });
+                const code = roomCode.toUpperCase();
+
+                const { data: room } = await supabase.from('rooms').select('*').eq('code', code).maybeSingle();
+                if (!room) return new Response(JSON.stringify({ error: 'Room not found' }), { status: 400, headers: corsHeaders });
+                if (room.status !== 'lobby') return new Response(JSON.stringify({ error: 'Game already in progress' }), { status: 400, headers: corsHeaders });
+                if (room.host_id !== playerId) return new Response(JSON.stringify({ error: 'Only the host can add bots' }), { status: 403, headers: corsHeaders });
+
+                const { data: players } = await supabase.from('players').select('id, name').eq('room_code', code);
+                const current = players || [];
+                if (current.length >= 4) return new Response(JSON.stringify({ error: 'Room is full' }), { status: 400, headers: corsHeaders });
+
+                const [botName] = pickBotNames(1, current.map((p) => p.name));
+                const { error: botErr } = await supabase.from('players').insert({
+                    id: crypto.randomUUID(),
+                    room_code: code,
+                    name: botName,
+                    is_host: false,
+                    is_bot: true,
+                    connected: true,
+                });
+                if (botErr) throw botErr;
+
+                await broadcastLobbyUpdate(code);
+                if (room.is_public) await broadcastPublicRoomsUpdate();
+
+                return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+            }
+
+            case 'remove_bot': {
+                if (!roomCode || !playerId || !targetPlayerId) return new Response(JSON.stringify({ error: 'Missing parameters' }), { status: 400, headers: corsHeaders });
+                const code = roomCode.toUpperCase();
+
+                const { data: room } = await supabase.from('rooms').select('*').eq('code', code).maybeSingle();
+                if (!room) return new Response(JSON.stringify({ error: 'Room not found' }), { status: 400, headers: corsHeaders });
+                if (room.status !== 'lobby') return new Response(JSON.stringify({ error: 'Game already in progress' }), { status: 400, headers: corsHeaders });
+                if (room.host_id !== playerId) return new Response(JSON.stringify({ error: 'Only the host can remove bots' }), { status: 403, headers: corsHeaders });
+
+                const { data: target } = await supabase.from('players').select('*').eq('id', targetPlayerId).eq('room_code', code).maybeSingle();
+                if (!target?.is_bot) return new Response(JSON.stringify({ error: 'Not a bot in this room' }), { status: 400, headers: corsHeaders });
+
+                await supabase.from('players').delete().eq('id', targetPlayerId);
+
+                await broadcastLobbyUpdate(code);
+                if (room.is_public) await broadcastPublicRoomsUpdate();
+
+                return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+            }
+
             case 'join_room': {
                 if (!roomCode || !playerName) {
                     return new Response(JSON.stringify({ error: 'Room code and player name required' }), { status: 400, headers: corsHeaders });
@@ -240,7 +506,7 @@ Deno.serve(async (req) => {
                 if (room.status !== 'lobby') return new Response(JSON.stringify({ error: 'Game already in progress' }), { status: 400, headers: corsHeaders });
 
                 // 2. Query player count
-                const { data: players } = await supabase.from('players').select('id, name').eq('room_code', formattedCode);
+                const { data: players } = await supabase.from('players').select('id, name, is_bot').eq('room_code', formattedCode);
                 const currentPlayers = players || [];
                 if (currentPlayers.length >= 4) return new Response(JSON.stringify({ error: 'Room is full' }), { status: 400, headers: corsHeaders });
 
@@ -264,7 +530,7 @@ Deno.serve(async (req) => {
 
                 const lobbyState = {
                     roomCode: formattedCode,
-                    players: [...currentPlayers.map((p) => ({ id: p.id, name: p.name, isHost: p.id === room.host_id })), { id: playerUUID, name: playerName, isHost: false }],
+                    players: [...currentPlayers.map((p) => ({ id: p.id, name: p.name, isHost: p.id === room.host_id, isBot: p.is_bot })), { id: playerUUID, name: playerName, isHost: false, isBot: false }],
                     maxPlayers: 4,
                 };
 
@@ -292,7 +558,7 @@ Deno.serve(async (req) => {
                 if (playersList.length < 2) return new Response(JSON.stringify({ error: 'Need at least 2 players' }), { status: 400, headers: corsHeaders });
 
                 // Create state
-                const gameState = initializeNewGame(roomCode, playersList.map((p) => ({ id: p.id, name: p.name })));
+                const gameState = initializeNewGame(roomCode, playersList.map((p) => ({ id: p.id, name: p.name, isBot: p.is_bot })));
 
                 // Update tables in DB
                 await supabase.from('rooms').update({ status: 'playing' }).eq('code', roomCode);
@@ -323,6 +589,7 @@ Deno.serve(async (req) => {
                 // Started games leave the public list (status is no longer 'lobby')
                 if (room.is_public) await broadcastPublicRoomsUpdate();
 
+                scheduleBotTurns(); // guard: first turn is normally the human host
                 return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
             }
 
@@ -363,6 +630,7 @@ Deno.serve(async (req) => {
                         id: p.id,
                         name: p.name,
                         isEliminated: p.is_eliminated,
+                        isBot: p.is_bot,
                         hand: handsMap[p.id] || [],
                     })),
                 };
@@ -421,6 +689,7 @@ Deno.serve(async (req) => {
                 }
 
                 await broadcastStateToAll(state);
+                scheduleBotTurns();
                 return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
             }
 
@@ -456,6 +725,7 @@ Deno.serve(async (req) => {
                         id: p.id,
                         name: p.name,
                         isEliminated: p.is_eliminated,
+                        isBot: p.is_bot,
                         hand: handsMap[p.id] || [],
                     })),
                 };
@@ -505,6 +775,7 @@ Deno.serve(async (req) => {
                 }
 
                 await broadcastStateToAll(state);
+                scheduleBotTurns();
                 return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
             }
 
@@ -541,6 +812,7 @@ Deno.serve(async (req) => {
                         id: p.id,
                         name: p.name,
                         isEliminated: p.is_eliminated,
+                        isBot: p.is_bot,
                         hand: handsMap[p.id] || [],
                     })),
                 };
@@ -557,6 +829,7 @@ Deno.serve(async (req) => {
                 }).eq('room_code', roomCode);
 
                 await broadcastStateToAll(state);
+                scheduleBotTurns();
                 return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
             }
 
@@ -592,6 +865,7 @@ Deno.serve(async (req) => {
                         id: p.id,
                         name: p.name,
                         isEliminated: p.is_eliminated,
+                        isBot: p.is_bot,
                         hand: handsMap[p.id] || [],
                     })),
                 };
@@ -637,6 +911,7 @@ Deno.serve(async (req) => {
                 }
 
                 await broadcastStateToAll(state);
+                scheduleBotTurns();
                 return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
             }
 
@@ -672,6 +947,7 @@ Deno.serve(async (req) => {
                         id: p.id,
                         name: p.name,
                         isEliminated: p.is_eliminated,
+                        isBot: p.is_bot,
                         hand: handsMap[p.id] || [],
                     })),
                 };
@@ -719,6 +995,7 @@ Deno.serve(async (req) => {
                 }
 
                 await broadcastStateToAll(state);
+                scheduleBotTurns();
                 return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
             }
 
@@ -753,7 +1030,7 @@ Deno.serve(async (req) => {
 
                 const lobbyState = {
                     roomCode,
-                    players: playersList.map((p) => ({ id: p.id, name: p.name, isHost: p.id === room.host_id })),
+                    players: playersList.map((p) => ({ id: p.id, name: p.name, isHost: p.id === room.host_id, isBot: p.is_bot })),
                     maxPlayers: 4,
                 };
 
@@ -786,11 +1063,15 @@ Deno.serve(async (req) => {
                                 id: p.id,
                                 name: p.name,
                                 isEliminated: p.is_eliminated,
+                                isBot: p.is_bot,
                                 hand: handsMap[p.id] || [],
                             })),
                         };
                         await broadcastStateToAll(state);
                     }
+                    // Self-heal: if a bot turn ever stalled (loop error /
+                    // runtime reaped), a returning player kicks it back on
+                    scheduleBotTurns();
                 } else {
                     // Update lobby for others
                     await broadcastLobbyUpdate(roomCode);
@@ -847,6 +1128,7 @@ Deno.serve(async (req) => {
                         id: p.id,
                         name: p.name,
                         isEliminated: p.is_eliminated,
+                        isBot: p.is_bot,
                         hand: handsMap[p.id] || [],
                     })),
                 };
@@ -881,6 +1163,8 @@ Deno.serve(async (req) => {
                     }
 
                     await broadcastStateToAll(state);
+                    // The departed player's turn may now belong to a bot
+                    scheduleBotTurns();
                 }
 
                 return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
