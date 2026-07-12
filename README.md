@@ -1,6 +1,6 @@
 # 🃏 Ruthless Colors — Online Multiplayer Card Game
 
-A serverless, real-time multiplayer card game for 2–4 players with rooms, stacking rules, and a Mercy rule. Powered by **Vite (React + TS)** on the frontend and **Supabase (Edge Functions, PostgreSQL, Realtime)** on the backend.
+A serverless, real-time multiplayer card game for 2–6 players with rooms, stacking rules, and a Mercy rule. Powered by **Vite (React + TS)** on the frontend and **Supabase (Edge Functions, PostgreSQL, Realtime)** on the backend.
 
 ---
 

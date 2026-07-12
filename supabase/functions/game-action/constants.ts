@@ -6,7 +6,7 @@ import { CardColor, CardValue } from './types.ts';
 
 export const MERCY_LIMIT = 25;
 export const INITIAL_HAND_SIZE = 7;
-export const MAX_PLAYERS = 4;
+export const MAX_PLAYERS = 6;
 export const MIN_PLAYERS = 2;
 export const ROOM_CODE_LENGTH = 6;
 export const RECONNECT_GRACE_MS = 30_000;

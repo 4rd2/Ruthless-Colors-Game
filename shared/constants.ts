@@ -11,7 +11,7 @@ export const MERCY_LIMIT = 25;
 export const INITIAL_HAND_SIZE = 7;
 
 /** Maximum players per room */
-export const MAX_PLAYERS = 4;
+export const MAX_PLAYERS = 6;
 
 /** Minimum players to start a game */
 export const MIN_PLAYERS = 2;

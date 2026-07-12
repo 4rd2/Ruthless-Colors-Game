@@ -15,6 +15,7 @@ import {
 } from './game.ts';
 import { checkWinCondition } from './rules.ts';
 import { chooseBotAction, pickBotNames } from './bot.ts';
+import { MAX_PLAYERS } from './constants.ts';
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -121,7 +122,7 @@ Deno.serve(async (req) => {
                                 payload: {
                                     roomCode: code,
                                     players: sorted.map((p) => ({ id: p.id, name: p.name, isHost: p.is_host, isBot: p.is_bot })),
-                                    maxPlayers: 4,
+                                    maxPlayers: MAX_PLAYERS,
                                 },
                             },
                         ],
@@ -144,9 +145,9 @@ Deno.serve(async (req) => {
                     code: r.code,
                     hostName: r.players?.find((p: any) => p.is_host)?.name ?? 'Host',
                     playerCount: r.players?.length ?? 0,
-                    maxPlayers: 4,
+                    maxPlayers: MAX_PLAYERS,
                 }))
-                .filter((r: any) => r.playerCount > 0 && r.playerCount < 4);
+                .filter((r: any) => r.playerCount > 0 && r.playerCount < MAX_PLAYERS);
         };
 
         // --- Helper: push the public rooms snapshot to everyone on the main screen ---
@@ -385,7 +386,7 @@ Deno.serve(async (req) => {
                 const lobbyState = {
                     roomCode: code,
                     players: [{ id: playerUUID, name: playerName, isHost: true }],
-                    maxPlayers: 4,
+                    maxPlayers: MAX_PLAYERS,
                 };
 
                 return new Response(JSON.stringify({ roomCode: code, playerId: playerUUID, lobby: lobbyState }), { headers: corsHeaders });
@@ -393,7 +394,7 @@ Deno.serve(async (req) => {
 
             case 'create_bot_game': {
                 if (!playerName) return new Response(JSON.stringify({ error: 'Player name required' }), { status: 400, headers: corsHeaders });
-                const bots = Math.max(1, Math.min(3, Number(body.botCount) || 1));
+                const bots = Math.max(1, Math.min(MAX_PLAYERS - 1, Number(body.botCount) || 1));
 
                 // 1. Generate room code (same alphabet as create_room)
                 let code = '';
@@ -438,7 +439,7 @@ Deno.serve(async (req) => {
                         { id: playerUUID, name: playerName, isHost: true, isBot: false },
                         ...botRows.map((b) => ({ id: b.id, name: b.name, isHost: false, isBot: true })),
                     ],
-                    maxPlayers: 4,
+                    maxPlayers: MAX_PLAYERS,
                 };
 
                 return new Response(JSON.stringify({ roomCode: code, playerId: playerUUID, lobby: lobbyState }), { headers: corsHeaders });
@@ -455,7 +456,7 @@ Deno.serve(async (req) => {
 
                 const { data: players } = await supabase.from('players').select('id, name').eq('room_code', code);
                 const current = players || [];
-                if (current.length >= 4) return new Response(JSON.stringify({ error: 'Room is full' }), { status: 400, headers: corsHeaders });
+                if (current.length >= MAX_PLAYERS) return new Response(JSON.stringify({ error: 'Room is full' }), { status: 400, headers: corsHeaders });
 
                 const [botName] = pickBotNames(1, current.map((p) => p.name));
                 const { error: botErr } = await supabase.from('players').insert({
@@ -508,7 +509,7 @@ Deno.serve(async (req) => {
                 // 2. Query player count
                 const { data: players } = await supabase.from('players').select('id, name, is_bot').eq('room_code', formattedCode);
                 const currentPlayers = players || [];
-                if (currentPlayers.length >= 4) return new Response(JSON.stringify({ error: 'Room is full' }), { status: 400, headers: corsHeaders });
+                if (currentPlayers.length >= MAX_PLAYERS) return new Response(JSON.stringify({ error: 'Room is full' }), { status: 400, headers: corsHeaders });
 
                 // 3. Verify unique name
                 if (currentPlayers.some((p) => p.name.toLowerCase() === playerName.toLowerCase())) {
@@ -531,7 +532,7 @@ Deno.serve(async (req) => {
                 const lobbyState = {
                     roomCode: formattedCode,
                     players: [...currentPlayers.map((p) => ({ id: p.id, name: p.name, isHost: p.id === room.host_id, isBot: p.is_bot })), { id: playerUUID, name: playerName, isHost: false, isBot: false }],
-                    maxPlayers: 4,
+                    maxPlayers: MAX_PLAYERS,
                 };
 
                 return new Response(JSON.stringify({ roomCode: formattedCode, playerId: playerUUID, lobby: lobbyState }), { headers: corsHeaders });
@@ -1031,7 +1032,7 @@ Deno.serve(async (req) => {
                 const lobbyState = {
                     roomCode,
                     players: playersList.map((p) => ({ id: p.id, name: p.name, isHost: p.id === room.host_id, isBot: p.is_bot })),
-                    maxPlayers: 4,
+                    maxPlayers: MAX_PLAYERS,
                 };
 
                 const gameInProgress = room.status === 'playing';

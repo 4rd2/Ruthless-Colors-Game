@@ -60,31 +60,26 @@ export function HandCarousel({ cards, isPlayable, onPlay, isMyTurn }: Props) {
     };
 
     /**
-     * Half-circle wheel transforms, driven by scrollLeft.
+     * Lazy-Susan fan, driven by scrollLeft.
      *
-     * The fan is ANCHORED at the viewport center: every card is placed
-     * at its true wheel position (x = R·sinθ, y = R·(1−cosθ), tilt θ),
-     * where θ comes from its distance to the scroll center. The
-     * translateX cancels the slot strip's linear slide, so swiping
-     * doesn't shove the whole deck sideways — it rotates the wheel and
-     * the next card sweeps up to the apex. Distant cards bunch at the
-     * wheel's edges and sink below the clip line.
+     * The hand is treated as a RING: each card's fan angle comes from
+     * its wrap-around distance to the focused card, so the occupied
+     * fan positions are the SAME symmetric set at every scroll offset —
+     * the silhouette is completely anchored at the viewport center and
+     * swiping circulates cards through it (the card farthest from
+     * focus fades out at one edge and back in at the other). The
+     * translateX cancels the slot strip's linear slide entirely.
      */
     const applyTransforms = () => {
         const track = trackRef.current;
         const step = stepRef.current || measureStep();
         if (!track || !step) return;
         const center = track.scrollLeft / step;
-        // Visual wheel radius, deliberately DECOUPLED from the scroll
-        // step: the fan is a compact held-hand shape pinned at the
-        // viewport center, and its edges never move. (Deriving R from
-        // the step makes R·sinθ ≈ the linear slide, which is exactly
-        // the whole-deck drift this replaces.)
+        // Visual wheel radius, decoupled from the scroll step
         const cardW = step / 0.62; // slots are --card-w * 0.62 wide
         const R = cardW * 1.8;
-        // Small hands spread to fill the whole fan window so the arc's
-        // ends stay pinned at the clamps while scrolling; big hands use
-        // the base angle and bunch at the edges.
+        // Small hands spread to fill the whole fan window; big hands
+        // use the base angle and bunch at the fixed edges.
         const n = cardsRef.current.length;
         const anglePer = Math.min(30, Math.max(ANGLE_PER_CARD, (2 * MAX_ANGLE) / Math.max(n - 1, 1)));
 
@@ -92,26 +87,33 @@ export function HandCarousel({ cards, isPlayable, onPlay, isMyTurn }: Props) {
             const slot = slotRefs.current.get(card.id);
             const xform = xformRefs.current.get(card.id);
             if (!slot || !xform) return;
-            const d = i - center;
-            const ad = Math.abs(d);
+            const d = i - center; // real strip offset (needed to cancel it)
 
-            slot.style.zIndex = String(Math.max(0, 100 - Math.round(ad * 10)));
-            slot.classList.toggle('is-focused', ad < 0.5);
+            // Ring distance to focus: wraps so positions stay symmetric
+            let r = (d % n + n) % n;
+            if (r > n / 2) r -= n;
+            const ar = Math.abs(r);
+
+            slot.style.zIndex = String(Math.max(0, 100 - Math.round(ar * 10)));
+            slot.classList.toggle('is-focused', ar < 0.5);
 
             if (reducedMotion) {
                 xform.style.transform = '';
+                xform.style.opacity = '';
                 return;
             }
-            const thetaDeg = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, d * anglePer));
+            const thetaDeg = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, r * anglePer));
             const theta = (thetaDeg * Math.PI) / 180;
-            const lift = Math.max(0, 1 - ad);
-            // True wheel placement, cancelling the slot strip's linear
-            // slide (d·step): swiping rotates cards through the fixed
-            // fan positions instead of shoving the deck sideways.
+            const lift = Math.max(0, 1 - ar);
             const x = R * Math.sin(theta) - d * step;
             const y = R * (1 - Math.cos(theta)) - lift * 14;
             const scale = 1 + lift * 0.14;
             xform.style.transform = `translateX(${x.toFixed(2)}px) translateY(${y.toFixed(2)}px) rotate(${thetaDeg.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
+
+            // Seam fade: the farthest-from-focus card crosses the back
+            // of the ring — fade it so the crossing never pops visibly
+            const seam = n / 2 - ar;
+            xform.style.opacity = n > 2 && seam < 0.75 ? Math.max(0, seam / 0.75).toFixed(2) : '';
         });
     };
 
@@ -131,23 +133,34 @@ export function HandCarousel({ cards, isPlayable, onPlay, isMyTurn }: Props) {
 
     // ── Scroll handling ──────────────────────────────────────
 
+    const syncToScroll = () => {
+        applyTransforms();
+        const idx = currentIndex();
+        if (idx !== focusedIdxRef.current) {
+            focusedIdxRef.current = idx;
+            setFocusedIdx(idx);
+        }
+    };
+
     const handleScroll = () => {
         if (!rafPending.current) {
             rafPending.current = true;
             requestAnimationFrame(() => {
                 rafPending.current = false;
-                applyTransforms();
-                const idx = currentIndex();
-                if (idx !== focusedIdxRef.current) {
-                    focusedIdxRef.current = idx;
-                    setFocusedIdx(idx);
-                }
+                syncToScroll();
             });
         }
-        // Hide tooltip while moving; re-show once the scroll settles
+        // Hide tooltip while moving; re-show once the scroll settles.
+        // The settle timeout ALSO re-syncs transforms: rAF never fires
+        // in occluded/background windows, which would otherwise leave
+        // the guard stuck and the fan frozen mid-strip.
         setSettled(false);
         if (settleTimer.current) clearTimeout(settleTimer.current);
-        settleTimer.current = setTimeout(() => setSettled(true), SETTLE_MS);
+        settleTimer.current = setTimeout(() => {
+            rafPending.current = false;
+            syncToScroll();
+            setSettled(true);
+        }, SETTLE_MS);
     };
 
     useEffect(() => {
